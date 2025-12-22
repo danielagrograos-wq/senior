@@ -13,8 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../../src/services/api';
-import { colors } from '../../src/theme/colors';
+import { api } from '@/src/services/api';
+import { colors } from '@/src/theme/colors';
 import { format, addHours, setHours, setMinutes, startOfTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
