@@ -14,9 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { api } from '../../src/services/api';
-import { colors } from '../../src/theme/colors';
-import { useAuth } from '../../src/contexts/AuthContext';
+import { api } from '@/src/services/api';
+import { colors } from '@/src/theme/colors';
+import { useAuth } from '@/src/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
