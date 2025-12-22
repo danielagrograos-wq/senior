@@ -26,11 +26,11 @@ interface Caregiver {
   neighborhood: string;
   experience_years: number;
   specializations: string[];
-  verified: bool;
+  verified: boolean;
   rating: number;
   total_reviews: number;
   photo: string | null;
-  available: bool;
+  available: boolean;
 }
 
 export default function HomeScreen() {
