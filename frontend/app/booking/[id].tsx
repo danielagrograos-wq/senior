@@ -24,6 +24,7 @@ interface Booking {
   id: string;
   caregiver_id: string;
   caregiver_name: string;
+  caregiver_photo?: string;
   client_id: string;
   client_name: string;
   elder_name: string;
@@ -36,6 +37,8 @@ interface Booking {
   total_cents: number;
   notes: string | null;
   paid: boolean;
+  check_in_time?: string;
+  check_out_time?: string;
   created_at: string;
 }
 
@@ -157,62 +160,49 @@ export default function BookingDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalhes do Agendamento</Text>
-        <View style={styles.headerButton} />
+        <Text style={styles.headerTitle}>Detalhes</Text>
+        {isCaregiver && booking.status === 'in_progress' && (
+          <TouchableOpacity
+            style={styles.emergencyHeaderBtn}
+            onPress={() => router.push(`/emergency?bookingId=${booking.id}`)}
+          >
+            <Ionicons name="warning" size={24} color={colors.error} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Status Badge */}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={[styles.statusContainer, { backgroundColor: status.bg }]}>
           <View style={[styles.statusDot, { backgroundColor: status.color }]} />
           <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
         </View>
 
-        {/* Info Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Informações</Text>
-          
           <View style={styles.infoRow}>
             <Ionicons name="person" size={18} color={colors.textSecondary} />
-            <Text style={styles.infoLabel}>
-              {isCaregiver ? 'Cliente' : 'Cuidador'}:
-            </Text>
-            <Text style={styles.infoValue}>
-              {isCaregiver ? booking.client_name : booking.caregiver_name}
-            </Text>
+            <Text style={styles.infoLabel}>{isCaregiver ? 'Cliente' : 'Cuidador'}:</Text>
+            <Text style={styles.infoValue}>{isCaregiver ? booking.client_name : booking.caregiver_name}</Text>
           </View>
-
           <View style={styles.infoRow}>
             <Ionicons name="people" size={18} color={colors.textSecondary} />
             <Text style={styles.infoLabel}>Idoso:</Text>
             <Text style={styles.infoValue}>{booking.elder_name}</Text>
           </View>
-
           <View style={styles.infoRow}>
             <Ionicons name="calendar" size={18} color={colors.textSecondary} />
             <Text style={styles.infoLabel}>Data:</Text>
-            <Text style={styles.infoValue}>
-              {format(startDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </Text>
+            <Text style={styles.infoValue}>{format(startDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</Text>
           </View>
-
           <View style={styles.infoRow}>
             <Ionicons name="time" size={18} color={colors.textSecondary} />
             <Text style={styles.infoLabel}>Horário:</Text>
-            <Text style={styles.infoValue}>
-              {format(startDate, 'HH:mm')} - {format(endDate, 'HH:mm')}
-            </Text>
+            <Text style={styles.infoValue}>{format(startDate, 'HH:mm')} - {format(endDate, 'HH:mm')}</Text>
           </View>
-
           {booking.notes && (
             <View style={styles.notesContainer}>
               <Text style={styles.notesLabel}>Observações:</Text>
@@ -221,7 +211,6 @@ export default function BookingDetailScreen() {
           )}
         </View>
 
-        {/* Price Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Valores</Text>
           <View style={styles.priceRow}>
@@ -238,11 +227,23 @@ export default function BookingDetailScreen() {
           </View>
         </View>
 
-        {/* Media Updates */}
+        {/* Care Log Button */}
+        {(booking.status === 'in_progress' || booking.status === 'completed') && (
+          <TouchableOpacity
+            style={styles.careLogButton}
+            onPress={() => router.push(`/care-log?bookingId=${booking.id}&elderName=${booking.elder_name}`)}
+          >
+            <Ionicons name="journal" size={24} color={colors.primary[600]} />
+            <View style={styles.careLogInfo}>
+              <Text style={styles.careLogTitle}>Diário de Cuidado</Text>
+              <Text style={styles.careLogSubtitle}>Visualizar registros e atualizações</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Atualizações</Text>
-          
-          {/* Upload section for caregivers during active booking */}
           {isCaregiver && booking.status === 'in_progress' && (
             <View style={styles.uploadSection}>
               <TextInput
@@ -257,9 +258,7 @@ export default function BookingDetailScreen() {
                 onPress={handleUploadMedia}
                 disabled={isUploading}
               >
-                {isUploading ? (
-                  <ActivityIndicator color={colors.white} />
-                ) : (
+                {isUploading ? <ActivityIndicator color={colors.white} /> : (
                   <>
                     <Ionicons name="camera" size={20} color={colors.white} />
                     <Text style={styles.uploadButtonText}>Enviar foto</Text>
@@ -268,68 +267,45 @@ export default function BookingDetailScreen() {
               </TouchableOpacity>
             </View>
           )}
-
-          {/* Media gallery */}
           {media.length > 0 ? (
             <View style={styles.mediaGrid}>
               {media.map((item) => (
                 <View key={item.id} style={styles.mediaItem}>
                   <Image source={{ uri: item.media_base64 }} style={styles.mediaImage} />
-                  {item.caption && (
-                    <Text style={styles.mediaCaption}>{item.caption}</Text>
-                  )}
-                  <Text style={styles.mediaTime}>
-                    {format(new Date(item.created_at), 'HH:mm', { locale: ptBR })}
-                  </Text>
+                  {item.caption && <Text style={styles.mediaCaption}>{item.caption}</Text>}
+                  <Text style={styles.mediaTime}>{format(new Date(item.created_at), 'HH:mm', { locale: ptBR })}</Text>
                 </View>
               ))}
             </View>
           ) : (
             <Text style={styles.noMediaText}>
-              {booking.status === 'in_progress'
-                ? isCaregiver
-                  ? 'Envie fotos para atualizar a família'
-                  : 'Aguarde atualizações do cuidador'
-                : 'Nenhuma atualização disponível'}
+              {booking.status === 'in_progress' ? (isCaregiver ? 'Envie fotos para atualizar a família' : 'Aguarde atualizações do cuidador') : 'Nenhuma atualização disponível'}
             </Text>
           )}
         </View>
 
-        {/* Action Buttons */}
         {isCaregiver && (
           <View style={styles.actionsCard}>
             {booking.status === 'pending' && (
               <>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.acceptBtn]}
-                  onPress={() => handleUpdateStatus('confirmed')}
-                >
+                <TouchableOpacity style={[styles.actionBtn, styles.acceptBtn]} onPress={() => handleUpdateStatus('confirmed')}>
                   <Ionicons name="checkmark" size={20} color={colors.white} />
                   <Text style={styles.actionBtnText}>Aceitar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.rejectBtn]}
-                  onPress={() => handleUpdateStatus('cancelled')}
-                >
+                <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]} onPress={() => handleUpdateStatus('cancelled')}>
                   <Ionicons name="close" size={20} color={colors.error} />
                   <Text style={[styles.actionBtnText, { color: colors.error }]}>Recusar</Text>
                 </TouchableOpacity>
               </>
             )}
             {booking.status === 'confirmed' && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.startBtn]}
-                onPress={() => handleUpdateStatus('in_progress')}
-              >
+              <TouchableOpacity style={[styles.actionBtn, styles.startBtn]} onPress={() => handleUpdateStatus('in_progress')}>
                 <Ionicons name="play" size={20} color={colors.white} />
                 <Text style={styles.actionBtnText}>Iniciar atendimento</Text>
               </TouchableOpacity>
             )}
             {booking.status === 'in_progress' && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.completeBtn]}
-                onPress={() => handleUpdateStatus('completed')}
-              >
+              <TouchableOpacity style={[styles.actionBtn, styles.completeBtn]} onPress={() => handleUpdateStatus('completed')}>
                 <Ionicons name="checkmark-done" size={20} color={colors.white} />
                 <Text style={styles.actionBtnText}>Finalizar atendimento</Text>
               </TouchableOpacity>
@@ -342,250 +318,55 @@ export default function BookingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: 40,
-  },
-  errorText: {
-    fontSize: 18,
-    color: colors.textPrimary,
-    marginTop: 16,
-  },
-  backBtn: {
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: colors.primary[600],
-    borderRadius: 12,
-  },
-  backBtnText: {
-    color: colors.white,
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 16,
-    gap: 8,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  notesContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  notesLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  notesText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    lineHeight: 20,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  priceLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  priceValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  totalRow: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    marginTop: 8,
-    paddingTop: 12,
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  totalValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.primary[600],
-  },
-  uploadSection: {
-    marginBottom: 16,
-  },
-  captionInput: {
-    backgroundColor: colors.secondary[50],
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  uploadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary[600],
-    borderRadius: 12,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  uploadButtonDisabled: {
-    opacity: 0.7,
-  },
-  uploadButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-  },
-  mediaGrid: {
-    gap: 12,
-  },
-  mediaItem: {
-    backgroundColor: colors.secondary[50],
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  mediaImage: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  mediaCaption: {
-    padding: 12,
-    paddingBottom: 4,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  mediaTime: {
-    padding: 12,
-    paddingTop: 4,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  noMediaText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  actionsCard: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  acceptBtn: {
-    backgroundColor: colors.success,
-  },
-  rejectBtn: {
-    backgroundColor: colors.error + '20',
-  },
-  startBtn: {
-    backgroundColor: colors.info,
-  },
-  completeBtn: {
-    backgroundColor: colors.success,
-  },
-  actionBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.white,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, paddingHorizontal: 40 },
+  errorText: { fontSize: 18, color: colors.textPrimary, marginTop: 16 },
+  backBtn: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.primary[600], borderRadius: 12 },
+  backBtnText: { color: colors.white, fontWeight: '600' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
+  headerButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: colors.textPrimary },
+  emergencyHeaderBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  statusContainer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginBottom: 16, gap: 8 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontSize: 14, fontWeight: '600' },
+  card: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 16 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 16 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
+  infoLabel: { fontSize: 14, color: colors.textSecondary },
+  infoValue: { fontSize: 14, fontWeight: '500', color: colors.textPrimary, flex: 1 },
+  notesContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  notesLabel: { fontSize: 14, color: colors.textSecondary, marginBottom: 4 },
+  notesText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+  priceLabel: { fontSize: 14, color: colors.textSecondary },
+  priceValue: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  totalRow: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 12 },
+  totalLabel: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  totalValue: { fontSize: 20, fontWeight: 'bold', color: colors.primary[600] },
+  careLogButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 16, gap: 12 },
+  careLogInfo: { flex: 1 },
+  careLogTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  careLogSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  uploadSection: { marginBottom: 16 },
+  captionInput: { backgroundColor: colors.secondary[50], borderRadius: 12, padding: 12, fontSize: 14, color: colors.textPrimary, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
+  uploadButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary[600], borderRadius: 12, paddingVertical: 12, gap: 8 },
+  uploadButtonDisabled: { opacity: 0.7 },
+  uploadButtonText: { color: colors.white, fontWeight: '600' },
+  mediaGrid: { gap: 12 },
+  mediaItem: { backgroundColor: colors.secondary[50], borderRadius: 12, overflow: 'hidden' },
+  mediaImage: { width: '100%', height: 200, resizeMode: 'cover' },
+  mediaCaption: { padding: 12, paddingBottom: 4, fontSize: 14, color: colors.textPrimary },
+  mediaTime: { padding: 12, paddingTop: 4, fontSize: 12, color: colors.textSecondary },
+  noMediaText: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic', textAlign: 'center', paddingVertical: 20 },
+  actionsCard: { flexDirection: 'row', gap: 12 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
+  acceptBtn: { backgroundColor: colors.success },
+  rejectBtn: { backgroundColor: colors.error + '20' },
+  startBtn: { backgroundColor: colors.info },
+  completeBtn: { backgroundColor: colors.success },
+  actionBtnText: { fontSize: 16, fontWeight: '600', color: colors.white },
 });

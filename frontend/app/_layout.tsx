@@ -11,18 +11,19 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: '#F8FAFC' },
-          }}
-        >
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F8FAFC' } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="caregiver/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="booking/new" options={{ headerShown: false }} />
           <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="care-log" options={{ headerShown: false }} />
+          <Stack.Screen name="emergency" options={{ headerShown: false, presentation: 'modal' }} />
+          <Stack.Screen name="academy" options={{ headerShown: false }} />
+          <Stack.Screen name="biometric" options={{ headerShown: false }} />
+          <Stack.Screen name="documents" options={{ headerShown: false }} />
         </Stack>
       </AuthProvider>
     </QueryClientProvider>
