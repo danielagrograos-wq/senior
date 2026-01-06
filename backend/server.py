@@ -1958,41 +1958,827 @@ async def create_notification_with_push(user_id: str, title: str, message: str, 
 
 @api_router.get("/")
 async def root():
-    return {"message": "SeniorCare+ API", "version": "2.1.0"}
+    return {"message": "SeniorCare+ API", "version": "2.2.0"}
 
 @api_router.get("/health")
 async def health():
     return {"status": "healthy"}
 
-@api_router.get("/debug/chat-rooms")
-async def debug_chat_rooms():
-    """Debug endpoint to check chat rooms"""
-    rooms = await db.chat_rooms.find().to_list(100)
-    for r in rooms:
-        if '_id' in r:
-            del r['_id']
-    return {"count": len(rooms), "rooms": rooms}
+# ============ ADMIN ENDPOINTS ============
 
-@api_router.get("/debug/chat-test/{user_id}")
-async def debug_chat_test(user_id: str):
-    """Debug endpoint to test chat query"""
-    all_rooms = await db.chat_rooms.find().to_list(100)
-    matching = []
-    for room in all_rooms:
-        if user_id in room.get('participants', []):
-            if '_id' in room:
-                del room['_id']
-            matching.append(room)
-    return {"user_id": user_id, "total_rooms": len(all_rooms), "matching": len(matching), "rooms": matching}
+def require_admin(user = Depends(get_current_user)):
+    """Dependency to require admin role"""
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail='Admin access required')
+    return user
 
-@api_router.get("/debug/whoami")
-async def debug_whoami(user = Depends(get_current_user)):
-    """Debug endpoint to see current user"""
+@api_router.get("/admin/dashboard")
+async def admin_dashboard(user = Depends(require_admin)):
+    """Get admin dashboard statistics"""
+    # User stats
+    total_users = await db.users.count_documents({})
+    total_clients = await db.users.count_documents({'role': 'client'})
+    total_caregivers = await db.users.count_documents({'role': 'caregiver'})
+    
+    # Caregiver stats
+    verified_caregivers = await db.caregiver_profiles.count_documents({'verified': True})
+    pending_verification = await db.caregiver_profiles.count_documents({'background_check_status': 'pending'})
+    
+    # Booking stats
+    total_bookings = await db.bookings.count_documents({})
+    pending_bookings = await db.bookings.count_documents({'status': 'pending'})
+    confirmed_bookings = await db.bookings.count_documents({'status': 'confirmed'})
+    completed_bookings = await db.bookings.count_documents({'status': 'completed'})
+    cancelled_bookings = await db.bookings.count_documents({'status': 'cancelled'})
+    
+    # Financial stats
+    pipeline = [
+        {'$match': {'paid': True}},
+        {'$group': {
+            '_id': None,
+            'total_revenue': {'$sum': '$total_cents'},
+            'total_platform_fees': {'$sum': '$platform_fee_cents'},
+            'total_caregiver_earnings': {'$sum': '$price_cents'}
+        }}
+    ]
+    financial = await db.bookings.aggregate(pipeline).to_list(1)
+    financial_data = financial[0] if financial else {'total_revenue': 0, 'total_platform_fees': 0, 'total_caregiver_earnings': 0}
+    
+    # Recent activity
+    recent_bookings = await db.bookings.find().sort('created_at', -1).limit(5).to_list(5)
+    for b in recent_bookings:
+        if '_id' in b:
+            del b['_id']
+    
+    recent_users = await db.users.find().sort('created_at', -1).limit(5).to_list(5)
+    for u in recent_users:
+        if '_id' in u:
+            del u['_id']
+        if 'password_hash' in u:
+            del u['password_hash']
+    
     return {
-        "user_id": user.get('id'),
-        "user_id_type": str(type(user.get('id'))),
-        "email": user.get('email'),
-        "role": user.get('role')
+        'users': {
+            'total': total_users,
+            'clients': total_clients,
+            'caregivers': total_caregivers
+        },
+        'caregivers': {
+            'verified': verified_caregivers,
+            'pending_verification': pending_verification
+        },
+        'bookings': {
+            'total': total_bookings,
+            'pending': pending_bookings,
+            'confirmed': confirmed_bookings,
+            'completed': completed_bookings,
+            'cancelled': cancelled_bookings
+        },
+        'financial': {
+            'total_revenue_cents': financial_data.get('total_revenue', 0),
+            'platform_fees_cents': financial_data.get('total_platform_fees', 0),
+            'caregiver_earnings_cents': financial_data.get('total_caregiver_earnings', 0)
+        },
+        'recent_bookings': recent_bookings,
+        'recent_users': recent_users
+    }
+
+@api_router.get("/admin/users")
+async def admin_list_users(
+    role: Optional[str] = None,
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20,
+    user = Depends(require_admin)
+):
+    """List all users with filtering"""
+    query = {}
+    if role:
+        query['role'] = role
+    if search:
+        query['$or'] = [
+            {'name': {'$regex': search, '$options': 'i'}},
+            {'email': {'$regex': search, '$options': 'i'}}
+        ]
+    
+    skip = (page - 1) * limit
+    total = await db.users.count_documents(query)
+    users = await db.users.find(query).skip(skip).limit(limit).sort('created_at', -1).to_list(limit)
+    
+    for u in users:
+        if '_id' in u:
+            del u['_id']
+        if 'password_hash' in u:
+            del u['password_hash']
+    
+    return {
+        'users': users,
+        'total': total,
+        'page': page,
+        'pages': (total + limit - 1) // limit
+    }
+
+@api_router.get("/admin/users/{user_id}")
+async def admin_get_user(user_id: str, admin = Depends(require_admin)):
+    """Get detailed user info"""
+    user = await db.users.find_one({'id': user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found')
+    
+    if '_id' in user:
+        del user['_id']
+    if 'password_hash' in user:
+        del user['password_hash']
+    
+    # Get profile
+    profile = None
+    if user['role'] == 'caregiver':
+        profile = await db.caregiver_profiles.find_one({'user_id': user_id})
+    elif user['role'] == 'client':
+        profile = await db.client_profiles.find_one({'user_id': user_id})
+    
+    if profile and '_id' in profile:
+        del profile['_id']
+    
+    # Get bookings count
+    bookings_count = await db.bookings.count_documents({
+        '$or': [{'client_id': user_id}, {'caregiver_user_id': user_id}]
+    })
+    
+    return {
+        'user': user,
+        'profile': profile,
+        'bookings_count': bookings_count
+    }
+
+@api_router.put("/admin/users/{user_id}/verify")
+async def admin_verify_user(user_id: str, verified: bool = True, admin = Depends(require_admin)):
+    """Verify or unverify a user"""
+    result = await db.users.update_one(
+        {'id': user_id},
+        {'$set': {'verified': verified}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail='User not found')
+    return {'success': True, 'verified': verified}
+
+@api_router.put("/admin/users/{user_id}/suspend")
+async def admin_suspend_user(user_id: str, suspended: bool = True, reason: str = '', admin = Depends(require_admin)):
+    """Suspend or unsuspend a user"""
+    result = await db.users.update_one(
+        {'id': user_id},
+        {'$set': {'suspended': suspended, 'suspension_reason': reason}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail='User not found')
+    return {'success': True, 'suspended': suspended}
+
+@api_router.get("/admin/caregivers/pending")
+async def admin_pending_caregivers(user = Depends(require_admin)):
+    """Get caregivers pending verification"""
+    profiles = await db.caregiver_profiles.find({
+        '$or': [
+            {'background_check_status': 'pending'},
+            {'verified': False}
+        ]
+    }).to_list(100)
+    
+    result = []
+    for p in profiles:
+        if '_id' in p:
+            del p['_id']
+        user_data = await db.users.find_one({'id': p['user_id']})
+        if user_data:
+            p['user_name'] = user_data['name']
+            p['user_email'] = user_data['email']
+        result.append(p)
+    
+    return result
+
+@api_router.put("/admin/caregivers/{caregiver_id}/approve")
+async def admin_approve_caregiver(caregiver_id: str, admin = Depends(require_admin)):
+    """Approve a caregiver's verification"""
+    result = await db.caregiver_profiles.update_one(
+        {'id': caregiver_id},
+        {'$set': {
+            'verified': True,
+            'background_check_status': 'approved',
+            'verified_at': datetime.utcnow(),
+            'verified_by': admin['id']
+        }}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail='Caregiver not found')
+    
+    # Notify caregiver
+    profile = await db.caregiver_profiles.find_one({'id': caregiver_id})
+    if profile:
+        await create_notification(
+            profile['user_id'],
+            '🎉 Parabéns! Você foi verificado!',
+            'Sua conta foi verificada pelo SeniorCare+. Agora você pode receber agendamentos.',
+            'verification_approved',
+            {}
+        )
+    
+    return {'success': True, 'message': 'Caregiver approved'}
+
+@api_router.put("/admin/caregivers/{caregiver_id}/reject")
+async def admin_reject_caregiver(caregiver_id: str, reason: str = '', admin = Depends(require_admin)):
+    """Reject a caregiver's verification"""
+    result = await db.caregiver_profiles.update_one(
+        {'id': caregiver_id},
+        {'$set': {
+            'background_check_status': 'rejected',
+            'rejection_reason': reason,
+            'rejected_at': datetime.utcnow(),
+            'rejected_by': admin['id']
+        }}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail='Caregiver not found')
+    
+    # Notify caregiver
+    profile = await db.caregiver_profiles.find_one({'id': caregiver_id})
+    if profile:
+        await create_notification(
+            profile['user_id'],
+            'Verificação não aprovada',
+            f'Sua verificação não foi aprovada. Motivo: {reason}',
+            'verification_rejected',
+            {}
+        )
+    
+    return {'success': True, 'message': 'Caregiver rejected'}
+
+@api_router.get("/admin/bookings")
+async def admin_list_bookings(
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20,
+    user = Depends(require_admin)
+):
+    """List all bookings"""
+    query = {}
+    if status:
+        query['status'] = status
+    
+    skip = (page - 1) * limit
+    total = await db.bookings.count_documents(query)
+    bookings = await db.bookings.find(query).skip(skip).limit(limit).sort('created_at', -1).to_list(limit)
+    
+    for b in bookings:
+        if '_id' in b:
+            del b['_id']
+    
+    return {
+        'bookings': bookings,
+        'total': total,
+        'page': page,
+        'pages': (total + limit - 1) // limit
+    }
+
+@api_router.get("/admin/reports/financial")
+async def admin_financial_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user = Depends(require_admin)
+):
+    """Get financial report"""
+    query = {'paid': True}
+    if start_date:
+        query['created_at'] = {'$gte': datetime.fromisoformat(start_date)}
+    if end_date:
+        if 'created_at' in query:
+            query['created_at']['$lte'] = datetime.fromisoformat(end_date)
+        else:
+            query['created_at'] = {'$lte': datetime.fromisoformat(end_date)}
+    
+    bookings = await db.bookings.find(query).to_list(1000)
+    
+    total_revenue = sum(b.get('total_cents', 0) for b in bookings)
+    platform_fees = sum(b.get('platform_fee_cents', 0) for b in bookings)
+    caregiver_earnings = sum(b.get('price_cents', 0) for b in bookings)
+    
+    return {
+        'total_bookings': len(bookings),
+        'total_revenue_cents': total_revenue,
+        'platform_fees_cents': platform_fees,
+        'caregiver_earnings_cents': caregiver_earnings,
+        'average_booking_cents': total_revenue // len(bookings) if bookings else 0
+    }
+
+# ============ CARE LOG COMPLETE ENDPOINTS ============
+
+class CareLogEntry(BaseModel):
+    booking_id: str
+    entry_type: Literal['check_in', 'check_out', 'meal', 'medication', 'activity', 'rest', 'hygiene', 'vital_signs', 'observation', 'incident']
+    description: str
+    vital_signs: Optional[Dict[str, Any]] = None  # {pressure: "120/80", temperature: "36.5", heart_rate: 72}
+    medication_given: Optional[str] = None
+    meal_description: Optional[str] = None
+    mood: Optional[str] = None  # happy, calm, anxious, confused, agitated
+    photo_base64: Optional[str] = None
+
+class CareLogResponse(BaseModel):
+    id: str
+    booking_id: str
+    caregiver_id: str
+    caregiver_name: str
+    entry_type: str
+    description: str
+    vital_signs: Optional[Dict[str, Any]] = None
+    medication_given: Optional[str] = None
+    meal_description: Optional[str] = None
+    mood: Optional[str] = None
+    photo_url: Optional[str] = None
+    created_at: datetime
+
+@api_router.post("/care-logs")
+async def create_care_log(entry: CareLogEntry, user = Depends(get_current_user)):
+    """Create a new care log entry"""
+    if user['role'] != 'caregiver':
+        raise HTTPException(status_code=403, detail='Only caregivers can create care logs')
+    
+    booking = await db.bookings.find_one({'id': entry.booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    if booking['caregiver_user_id'] != user['id']:
+        raise HTTPException(status_code=403, detail='You are not the caregiver for this booking')
+    
+    log_id = str(uuid.uuid4())
+    log_entry = {
+        'id': log_id,
+        'booking_id': entry.booking_id,
+        'caregiver_id': user['id'],
+        'caregiver_name': user['name'],
+        'client_id': booking['client_id'],
+        'elder_name': booking['elder_name'],
+        'entry_type': entry.entry_type,
+        'description': entry.description,
+        'vital_signs': entry.vital_signs,
+        'medication_given': entry.medication_given,
+        'meal_description': entry.meal_description,
+        'mood': entry.mood,
+        'photo_base64': entry.photo_base64,
+        'created_at': datetime.utcnow()
+    }
+    
+    await db.care_logs.insert_one(log_entry)
+    
+    # Notify client
+    type_labels = {
+        'check_in': '📍 Check-in realizado',
+        'check_out': '👋 Check-out realizado',
+        'meal': '🍽️ Refeição registrada',
+        'medication': '💊 Medicação administrada',
+        'activity': '🎯 Atividade realizada',
+        'rest': '😴 Período de descanso',
+        'hygiene': '🚿 Higiene realizada',
+        'vital_signs': '❤️ Sinais vitais medidos',
+        'observation': '📝 Nova observação',
+        'incident': '⚠️ Incidente registrado'
+    }
+    
+    await create_notification(
+        booking['client_id'],
+        type_labels.get(entry.entry_type, 'Atualização do cuidado'),
+        f'{user["name"]}: {entry.description[:50]}...' if len(entry.description) > 50 else f'{user["name"]}: {entry.description}',
+        'care_log_update',
+        {'log_id': log_id, 'booking_id': entry.booking_id}
+    )
+    
+    # Update booking check-in/check-out times
+    if entry.entry_type == 'check_in':
+        await db.bookings.update_one(
+            {'id': entry.booking_id},
+            {'$set': {'check_in_time': datetime.utcnow(), 'status': 'in_progress'}}
+        )
+    elif entry.entry_type == 'check_out':
+        await db.bookings.update_one(
+            {'id': entry.booking_id},
+            {'$set': {'check_out_time': datetime.utcnow()}}
+        )
+    
+    return {'id': log_id, 'message': 'Care log entry created'}
+
+@api_router.get("/care-logs/{booking_id}")
+async def get_care_logs(booking_id: str, user = Depends(get_current_user)):
+    """Get all care logs for a booking"""
+    booking = await db.bookings.find_one({'id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    # Check access
+    if user['id'] not in [booking['client_id'], booking['caregiver_user_id']] and user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail='Access denied')
+    
+    logs = await db.care_logs.find({'booking_id': booking_id}).sort('created_at', -1).to_list(200)
+    
+    for log in logs:
+        if '_id' in log:
+            del log['_id']
+    
+    return logs
+
+@api_router.get("/care-logs/summary/{booking_id}")
+async def get_care_log_summary(booking_id: str, user = Depends(get_current_user)):
+    """Get AI-generated summary of care logs"""
+    logs = await db.care_logs.find({'booking_id': booking_id}).sort('created_at', 1).to_list(200)
+    
+    if not logs:
+        return {'summary': 'Nenhum registro de cuidado ainda.'}
+    
+    # Create summary from logs
+    summary_parts = []
+    medications = []
+    meals = []
+    activities = []
+    vital_signs_history = []
+    
+    for log in logs:
+        if log['entry_type'] == 'medication' and log.get('medication_given'):
+            medications.append(log['medication_given'])
+        elif log['entry_type'] == 'meal' and log.get('meal_description'):
+            meals.append(log['meal_description'])
+        elif log['entry_type'] == 'activity':
+            activities.append(log['description'])
+        elif log['entry_type'] == 'vital_signs' and log.get('vital_signs'):
+            vital_signs_history.append(log['vital_signs'])
+    
+    summary = f"📊 Resumo do dia:\n\n"
+    summary += f"📝 Total de registros: {len(logs)}\n"
+    
+    if medications:
+        summary += f"\n💊 Medicações ({len(medications)}): {', '.join(medications)}\n"
+    if meals:
+        summary += f"\n🍽️ Refeições ({len(meals)}): {', '.join(meals)}\n"
+    if activities:
+        summary += f"\n🎯 Atividades ({len(activities)}): {', '.join(activities[:3])}{'...' if len(activities) > 3 else ''}\n"
+    if vital_signs_history:
+        latest = vital_signs_history[-1]
+        summary += f"\n❤️ Últimos sinais vitais: Pressão {latest.get('pressure', 'N/A')}, Temp {latest.get('temperature', 'N/A')}°C\n"
+    
+    return {'summary': summary, 'total_logs': len(logs)}
+
+# ============ DOCUMENT OCR VALIDATION ============
+
+@api_router.post("/documents/validate-ocr")
+async def validate_document_ocr(
+    document_type: str,  # 'cpf', 'rg', 'coren', 'certificate'
+    document_base64: str,
+    user = Depends(get_current_user)
+):
+    """Validate document using OCR (simulated AI analysis)"""
+    
+    # In production, this would use an actual OCR service like Google Vision API
+    # For now, we simulate the validation
+    
+    doc_id = str(uuid.uuid4())
+    
+    # Store document
+    document = {
+        'id': doc_id,
+        'user_id': user['id'],
+        'document_type': document_type,
+        'document_base64': document_base64[:100] + '...',  # Store truncated for security
+        'status': 'pending',
+        'ocr_result': None,
+        'validation_result': None,
+        'created_at': datetime.utcnow()
+    }
+    await db.documents.insert_one(document)
+    
+    # Simulate OCR processing
+    validation_results = {
+        'cpf': {
+            'extracted_number': '***.***.***-**',  # Masked for security
+            'valid_format': True,
+            'confidence': 0.95
+        },
+        'rg': {
+            'extracted_number': '*******-*',
+            'valid_format': True,
+            'confidence': 0.92
+        },
+        'coren': {
+            'extracted_number': 'COREN-XX-******',
+            'valid_format': True,
+            'professional_type': 'Técnico de Enfermagem',
+            'confidence': 0.88
+        },
+        'certificate': {
+            'institution': 'Instituto de Cuidadores',
+            'course_name': 'Cuidador de Idosos',
+            'valid': True,
+            'confidence': 0.85
+        }
+    }
+    
+    result = validation_results.get(document_type, {'valid_format': False, 'confidence': 0})
+    
+    # Update document with OCR result
+    await db.documents.update_one(
+        {'id': doc_id},
+        {'$set': {
+            'status': 'validated' if result.get('valid_format', False) else 'invalid',
+            'ocr_result': result,
+            'validated_at': datetime.utcnow()
+        }}
+    )
+    
+    return {
+        'document_id': doc_id,
+        'document_type': document_type,
+        'validation_result': result,
+        'status': 'validated' if result.get('valid_format', False) else 'invalid'
+    }
+
+@api_router.get("/documents/user/{user_id}")
+async def get_user_documents(user_id: str, current_user = Depends(get_current_user)):
+    """Get all documents for a user"""
+    if current_user['id'] != user_id and current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail='Access denied')
+    
+    documents = await db.documents.find({'user_id': user_id}).to_list(50)
+    
+    for doc in documents:
+        if '_id' in doc:
+            del doc['_id']
+        # Remove base64 data for security
+        if 'document_base64' in doc:
+            doc['has_image'] = True
+            del doc['document_base64']
+    
+    return documents
+
+# ============ SENIORCARE ACADEMY ============
+
+# Pre-defined educational content
+ACADEMY_CONTENT = {
+    'categories': [
+        {'id': 'family', 'name': 'Para Famílias', 'icon': '👨‍👩‍👧'},
+        {'id': 'caregiver', 'name': 'Para Cuidadores', 'icon': '👩‍⚕️'},
+        {'id': 'health', 'name': 'Saúde do Idoso', 'icon': '❤️'},
+        {'id': 'emergency', 'name': 'Emergências', 'icon': '🚨'}
+    ],
+    'articles': [
+        {
+            'id': 'art-001',
+            'category': 'family',
+            'title': 'Como escolher o cuidador ideal',
+            'summary': 'Aprenda os critérios essenciais para selecionar um cuidador de confiança para seu familiar.',
+            'content': '''
+## Como escolher o cuidador ideal para seu familiar
+
+### 1. Verifique as qualificações
+- Certificações em cuidado de idosos
+- Experiência comprovada
+- Referências de trabalhos anteriores
+
+### 2. Avalie a compatibilidade
+- Personalidade compatível com o idoso
+- Disponibilidade de horários
+- Habilidades específicas necessárias
+
+### 3. Faça uma entrevista presencial
+- Observe a interação com o idoso
+- Pergunte sobre situações de emergência
+- Verifique a pontualidade
+
+### 4. Use o Smart Match do SeniorCare+
+Nossa tecnologia analisa a compatibilidade automaticamente, considerando:
+- Especialidades do cuidador
+- Necessidades do idoso
+- Preferências da família
+            ''',
+            'read_time': 5,
+            'image': 'family_care'
+        },
+        {
+            'id': 'art-002',
+            'category': 'family',
+            'title': 'Adaptando a casa para idosos',
+            'summary': 'Modificações simples que podem prevenir acidentes e melhorar a qualidade de vida.',
+            'content': '''
+## Adaptando a casa para segurança do idoso
+
+### Banheiro
+- Instale barras de apoio
+- Use tapetes antiderrapantes
+- Eleve o vaso sanitário se necessário
+
+### Quarto
+- Cama na altura adequada
+- Boa iluminação noturna
+- Objetos essenciais ao alcance
+
+### Cozinha
+- Utensílios de fácil manuseio
+- Evite objetos em prateleiras altas
+- Piso sempre seco
+
+### Áreas de circulação
+- Remova tapetes soltos
+- Iluminação adequada
+- Corrimãos nas escadas
+            ''',
+            'read_time': 4,
+            'image': 'home_safety'
+        },
+        {
+            'id': 'art-003',
+            'category': 'caregiver',
+            'title': 'Técnicas de transferência segura',
+            'summary': 'Aprenda a movimentar o idoso com segurança, evitando lesões para ambos.',
+            'content': '''
+## Técnicas de transferência segura
+
+### Princípios básicos
+1. Sempre avise o idoso sobre o movimento
+2. Mantenha sua coluna reta
+3. Use a força das pernas, não das costas
+4. Peça ajuda quando necessário
+
+### Da cama para cadeira
+1. Posicione a cadeira ao lado da cama
+2. Ajude o idoso a sentar na beira
+3. Apoie sob os braços
+4. Gire os pés e sente na cadeira
+
+### Prevenção de quedas
+- Nunca tenha pressa
+- Certifique-se que o idoso está calçado
+- Mantenha o caminho livre
+            ''',
+            'read_time': 6,
+            'image': 'transfer_technique'
+        },
+        {
+            'id': 'art-004',
+            'category': 'caregiver',
+            'title': 'Como preencher o Care Log',
+            'summary': 'Guia completo para documentar corretamente os cuidados prestados.',
+            'content': '''
+## Guia do Care Log SeniorCare+
+
+### Por que documentar?
+- Histórico completo para a família
+- Continuidade do cuidado
+- Proteção legal
+- Melhoria contínua
+
+### O que registrar
+- **Check-in/Check-out**: Horários exatos
+- **Medicações**: Nome, dose, horário
+- **Refeições**: O que comeu, quanto
+- **Atividades**: Exercícios, passeios
+- **Sinais vitais**: Pressão, temperatura
+- **Humor**: Estado emocional
+
+### Dicas importantes
+- Registre em tempo real
+- Seja específico e objetivo
+- Adicione fotos quando relevante
+- Relate qualquer alteração
+            ''',
+            'read_time': 5,
+            'image': 'care_log'
+        },
+        {
+            'id': 'art-005',
+            'category': 'health',
+            'title': 'Entendendo o Alzheimer',
+            'summary': 'Informações essenciais sobre a doença e como lidar no dia a dia.',
+            'content': '''
+## Entendendo o Alzheimer
+
+### O que é?
+O Alzheimer é uma doença neurodegenerativa que afeta a memória, pensamento e comportamento.
+
+### Estágios
+1. **Inicial**: Esquecimentos leves, dificuldade com palavras
+2. **Moderado**: Confusão, mudanças de personalidade
+3. **Avançado**: Dependência total, perda de comunicação
+
+### Como ajudar
+- Mantenha rotinas consistentes
+- Use lembretes visuais
+- Seja paciente e carinhoso
+- Ambiente seguro e familiar
+
+### Comunicação
+- Fale devagar e claramente
+- Use frases curtas
+- Evite corrigir ou discutir
+- Demonstre afeto
+            ''',
+            'read_time': 7,
+            'image': 'alzheimer'
+        },
+        {
+            'id': 'art-006',
+            'category': 'emergency',
+            'title': 'Primeiros socorros para idosos',
+            'summary': 'Saiba como agir em situações de emergência até a chegada do socorro.',
+            'content': '''
+## Primeiros Socorros para Idosos
+
+### Queda
+1. Não movimente se suspeitar de fratura
+2. Acalme a pessoa
+3. Verifique ferimentos visíveis
+4. Chame o SAMU (192) se necessário
+
+### Engasgo
+1. Pergunte se consegue tossir
+2. Se não: aplique 5 tapas nas costas
+3. Depois: 5 compressões abdominais
+4. Repita até desobstruir ou socorro chegar
+
+### Desmaio
+1. Deite a pessoa de costas
+2. Eleve as pernas
+3. Afrouxe roupas apertadas
+4. Não dê água se inconsciente
+
+### Sinais de AVC
+- Face caída de um lado
+- Braço fraco
+- Fala arrastada
+- Tempo: ligue 192 imediatamente!
+            ''',
+            'read_time': 8,
+            'image': 'first_aid'
+        }
+    ],
+    'courses': [
+        {
+            'id': 'course-001',
+            'title': 'Certificação Básica em Cuidados',
+            'description': 'Curso completo para iniciar na carreira de cuidador de idosos.',
+            'modules': 5,
+            'duration_hours': 20,
+            'badge': '🏅 Cuidador Certificado'
+        },
+        {
+            'id': 'course-002',
+            'title': 'Cuidados com Alzheimer',
+            'description': 'Especialização em cuidados para pacientes com Alzheimer e demência.',
+            'modules': 4,
+            'duration_hours': 15,
+            'badge': '🧠 Especialista Alzheimer'
+        }
+    ]
+}
+
+@api_router.get("/academy/categories")
+async def get_academy_categories():
+    """Get all academy categories"""
+    return ACADEMY_CONTENT['categories']
+
+@api_router.get("/academy/articles")
+async def get_academy_articles(category: Optional[str] = None):
+    """Get academy articles, optionally filtered by category"""
+    articles = ACADEMY_CONTENT['articles']
+    if category:
+        articles = [a for a in articles if a['category'] == category]
+    
+    # Return without full content for listing
+    return [{k: v for k, v in a.items() if k != 'content'} for a in articles]
+
+@api_router.get("/academy/articles/{article_id}")
+async def get_academy_article(article_id: str, user = Depends(get_current_user)):
+    """Get full article content"""
+    for article in ACADEMY_CONTENT['articles']:
+        if article['id'] == article_id:
+            # Track reading progress
+            await db.academy_progress.update_one(
+                {'user_id': user['id'], 'article_id': article_id},
+                {'$set': {'read': True, 'read_at': datetime.utcnow()}},
+                upsert=True
+            )
+            return article
+    raise HTTPException(status_code=404, detail='Article not found')
+
+@api_router.get("/academy/courses")
+async def get_academy_courses():
+    """Get all available courses"""
+    return ACADEMY_CONTENT['courses']
+
+@api_router.get("/academy/progress")
+async def get_user_academy_progress(user = Depends(get_current_user)):
+    """Get user's academy progress"""
+    progress = await db.academy_progress.find({'user_id': user['id']}).to_list(100)
+    
+    articles_read = [p['article_id'] for p in progress if p.get('read')]
+    
+    return {
+        'articles_read': len(articles_read),
+        'total_articles': len(ACADEMY_CONTENT['articles']),
+        'progress_percent': int(len(articles_read) / len(ACADEMY_CONTENT['articles']) * 100),
+        'read_articles': articles_read
     }
 
 # Include router and configure CORS
