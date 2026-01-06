@@ -1956,6 +1956,15 @@ async def root():
 async def health():
     return {"status": "healthy"}
 
+@api_router.get("/debug/chat-rooms")
+async def debug_chat_rooms():
+    """Debug endpoint to check chat rooms"""
+    rooms = await db.chat_rooms.find().to_list(100)
+    for r in rooms:
+        if '_id' in r:
+            del r['_id']
+    return {"count": len(rooms), "rooms": rooms}
+
 # Include router and configure CORS
 app.include_router(api_router)
 
