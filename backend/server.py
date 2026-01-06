@@ -1758,38 +1758,31 @@ async def create_or_get_chat_room(data: ChatRoomCreate, user = Depends(get_curre
 @api_router.get("/chat/rooms")
 async def get_chat_rooms(user = Depends(get_current_user)):
     """Get all chat rooms for user"""
-    user_id = user['id']
-    logger.warning(f"DEBUG: Getting chat rooms for user_id: {user_id}")
-    
-    # First get all rooms
-    all_rooms = await db.chat_rooms.find().to_list(100)
-    logger.warning(f"DEBUG: Total rooms in DB: {len(all_rooms)}")
-    
-    # Filter manually
-    matching_rooms = [r for r in all_rooms if user_id in r.get('participants', [])]
-    logger.warning(f"DEBUG: Matching rooms: {len(matching_rooms)}")
-    
-    rooms = await db.chat_rooms.find({
-        'participants': user_id
-    }).sort('last_message_at', -1).to_list(50)
-    
-    logger.warning(f"DEBUG: Query result: {len(rooms)} rooms")
-    
-    result = []
-    for room in rooms:
-        if '_id' in room:
-            del room['_id']
+    try:
+        user_id = user['id']
         
-        # Count unread messages
-        unread = await db.chat_messages.count_documents({
-            'room_id': room['id'],
-            'sender_id': {'$ne': user_id},
-            'read': False
-        })
-        room['unread_count'] = unread
-        result.append(room)
-    
-    return result
+        # Get all rooms and filter manually
+        all_rooms = await db.chat_rooms.find().to_list(100)
+        matching_rooms = []
+        
+        for room in all_rooms:
+            if user_id in room.get('participants', []):
+                if '_id' in room:
+                    del room['_id']
+                
+                # Count unread messages
+                unread = await db.chat_messages.count_documents({
+                    'room_id': room['id'],
+                    'sender_id': {'$ne': user_id},
+                    'read': False
+                })
+                room['unread_count'] = unread
+                matching_rooms.append(room)
+        
+        return matching_rooms
+    except Exception as e:
+        logger.error(f"Error in get_chat_rooms: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/chat/rooms/{room_id}/messages")
 async def get_room_messages(room_id: str, limit: int = 50, user = Depends(get_current_user)):
