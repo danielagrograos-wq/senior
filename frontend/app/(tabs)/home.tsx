@@ -6,9 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   Image,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { api } from '@/src/services/api';
 import { colors } from '@/src/theme/colors';
+import { ShimmerPlaceholder, CaregiverCardSkeleton } from '@/src/components/ShimmerPlaceholder';
+import { MatchBadge } from '@/src/components/MatchBadge';
 
 interface Caregiver {
   id: string;
@@ -31,16 +33,18 @@ interface Caregiver {
   total_reviews: number;
   photo: string | null;
   available: boolean;
+  match_score?: number;
 }
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile, unreadNotifications, seniorMode } = useAuth();
   const [caregivers, setCaregivers] = useState<Caregiver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
+  const [smartMatchEnabled, setSmartMatchEnabled] = useState(true);
 
   const cities = [
     { id: '', name: 'Todas' },
@@ -52,11 +56,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchCaregivers();
-  }, [selectedCity]);
+  }, [selectedCity, smartMatchEnabled]);
 
   const fetchCaregivers = async () => {
     try {
-      const params: any = { available_only: true };
+      const params: any = { available_only: true, smart_match: smartMatchEnabled };
       if (selectedCity) params.city = selectedCity;
       
       const response = await api.get('/caregivers', { params });
@@ -99,7 +103,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.cardInfo}>
           <View style={styles.nameRow}>
-            <Text style={styles.caregiverName}>{item.user_name}</Text>
+            <Text style={[styles.caregiverName, seniorMode && styles.seniorText]}>{item.user_name}</Text>
             {item.verified && (
               <Ionicons name="checkmark-circle" size={18} color={colors.primary[500]} />
             )}
@@ -118,8 +122,9 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={styles.priceContainer}>
+          {item.match_score && <MatchBadge score={item.match_score} />}
           <Text style={styles.priceLabel}>A partir de</Text>
-          <Text style={styles.priceValue}>R$ {item.price_hour.toFixed(0)}</Text>
+          <Text style={[styles.priceValue, seniorMode && styles.seniorPrice]}>R$ {item.price_hour.toFixed(0)}</Text>
           <Text style={styles.priceUnit}>/hora</Text>
         </View>
       </View>
@@ -156,6 +161,50 @@ export default function HomeScreen() {
     return <CaregiverDashboard />;
   }
 
+  // Senior Mode - Simplified Interface
+  if (seniorMode) {
+    return (
+      <SafeAreaView style={styles.seniorContainer}>
+        <View style={styles.seniorHeader}>
+          <Text style={styles.seniorTitle}>Olá!</Text>
+          <Text style={styles.seniorSubtitle}>Quem vem hoje?</Text>
+        </View>
+        
+        <View style={styles.seniorContent}>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.seniorLoadingText}>Carregando...</Text>
+            </View>
+          ) : filteredCaregivers.length > 0 ? (
+            <TouchableOpacity 
+              style={styles.seniorCard}
+              onPress={() => router.push(`/caregiver/${filteredCaregivers[0].id}`)}
+            >
+              <View style={styles.seniorAvatarContainer}>
+                {filteredCaregivers[0].photo ? (
+                  <Image source={{ uri: filteredCaregivers[0].photo }} style={styles.seniorAvatar} />
+                ) : (
+                  <View style={[styles.seniorAvatar, styles.avatarPlaceholder]}>
+                    <Ionicons name="person" size={60} color={colors.textMuted} />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.seniorCaregiverName}>{filteredCaregivers[0].user_name}</Text>
+              <Text style={styles.seniorCaregiverInfo}>
+                {filteredCaregivers[0].specializations[0] || 'Cuidador(a)'}
+              </Text>
+              <View style={styles.seniorButton}>
+                <Text style={styles.seniorButtonText}>VER DETALHES</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.seniorEmptyText}>Nenhum cuidador disponível</Text>
+          )}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -164,10 +213,36 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Olá, {user?.name?.split(' ')[0]}!</Text>
           <Text style={styles.subtitle}>Encontre o cuidador ideal</Text>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={() => router.push('/notifications')}
+        >
           <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
+          {unreadNotifications > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
+
+      {/* Smart Match Toggle */}
+      {profile && (
+        <View style={styles.smartMatchContainer}>
+          <View style={styles.smartMatchInfo}>
+            <Ionicons name="heart" size={20} color={colors.primary[500]} />
+            <Text style={styles.smartMatchText}>Smart Match</Text>
+          </View>
+          <Switch
+            value={smartMatchEnabled}
+            onValueChange={setSmartMatchEnabled}
+            trackColor={{ false: colors.secondary[200], true: colors.primary[300] }}
+            thumbColor={smartMatchEnabled ? colors.primary[600] : colors.secondary[400]}
+          />
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -219,8 +294,10 @@ export default function HomeScreen() {
 
       {/* Caregivers List */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
+        <View style={styles.skeletonContainer}>
+          <CaregiverCardSkeleton />
+          <CaregiverCardSkeleton />
+          <CaregiverCardSkeleton />
         </View>
       ) : (
         <FlatList
@@ -247,23 +324,33 @@ export default function HomeScreen() {
           }
         />
       )}
+
+      {/* Quick Actions FAB */}
+      <TouchableOpacity
+        style={styles.academyFab}
+        onPress={() => router.push('/academy')}
+      >
+        <Ionicons name="school" size={24} color={colors.white} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 // Caregiver Dashboard Component
 function CaregiverDashboard() {
-  const { user, profile } = useAuth();
+  const { user, profile, unreadNotifications } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState({
     pendingBookings: 0,
     activeBookings: 0,
     completedBookings: 0,
   });
+  const [needsBiometric, setNeedsBiometric] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    checkBiometric();
   }, []);
 
   const fetchStats = async () => {
@@ -282,6 +369,15 @@ function CaregiverDashboard() {
     }
   };
 
+  const checkBiometric = async () => {
+    try {
+      const response = await api.get('/biometric/status');
+      setNeedsBiometric(response.data.needs_verification);
+    } catch (error) {
+      console.error('Error checking biometric:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -289,7 +385,37 @@ function CaregiverDashboard() {
           <Text style={styles.greeting}>Olá, {user?.name?.split(' ')[0]}!</Text>
           <Text style={styles.subtitle}>Painel do Cuidador</Text>
         </View>
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={() => router.push('/notifications')}
+        >
+          <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
+          {unreadNotifications > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
+
+      {/* Biometric Alert */}
+      {needsBiometric && (
+        <TouchableOpacity 
+          style={styles.biometricBanner}
+          onPress={() => router.push('/biometric')}
+        >
+          <Ionicons name="finger-print" size={24} color={colors.error} />
+          <View style={styles.biometricTextContainer}>
+            <Text style={styles.biometricTitle}>Verificação diária necessária</Text>
+            <Text style={styles.biometricSubtitle}>
+              Faça sua verificação facial para continuar recebendo solicitações
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.error} />
+        </TouchableOpacity>
+      )}
 
       {/* Verification Status */}
       {!profile?.verified && (
@@ -340,28 +466,34 @@ function CaregiverDashboard() {
             <Text style={styles.quickActionText}>Editar Perfil</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionCard}>
+          <TouchableOpacity 
+            style={styles.quickActionCard}
+            onPress={() => router.push('/documents')}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: colors.info + '30' }]}>
               <Ionicons name="document-text" size={24} color={colors.info} />
             </View>
             <Text style={styles.quickActionText}>Documentos</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionCard}>
+          <TouchableOpacity 
+            style={styles.quickActionCard}
+            onPress={() => router.push('/biometric')}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: colors.success + '30' }]}>
-              <Ionicons name="camera" size={24} color={colors.success} />
+              <Ionicons name="finger-print" size={24} color={colors.success} />
             </View>
             <Text style={styles.quickActionText}>Verificação Facial</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.quickActionCard}
-            onPress={() => router.push('/(tabs)/bookings')}
+            onPress={() => router.push('/academy')}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: colors.warning + '30' }]}>
-              <Ionicons name="calendar" size={24} color={colors.warning} />
+              <Ionicons name="school" size={24} color={colors.warning} />
             </View>
-            <Text style={styles.quickActionText}>Agendamentos</Text>
+            <Text style={styles.quickActionText}>Academy</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -394,6 +526,44 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     padding: 8,
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBadgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  smartMatchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primary[50],
+    marginHorizontal: 20,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  smartMatchInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smartMatchText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary[700],
   },
   searchContainer: {
     paddingHorizontal: 20,
@@ -443,6 +613,9 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: colors.white,
   },
+  skeletonContainer: {
+    paddingHorizontal: 20,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -450,7 +623,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
   caregiverCard: {
     backgroundColor: colors.white,
@@ -505,6 +678,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
+  seniorText: {
+    fontSize: 22,
+  },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -531,11 +707,15 @@ const styles = StyleSheet.create({
   priceLabel: {
     fontSize: 11,
     color: colors.textMuted,
+    marginTop: 4,
   },
   priceValue: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.primary[600],
+  },
+  seniorPrice: {
+    fontSize: 24,
   },
   priceUnit: {
     fontSize: 12,
@@ -595,7 +775,120 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  academyFab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary[600],
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  // Senior Mode Styles
+  seniorContainer: {
+    flex: 1,
+    backgroundColor: colors.primary[600],
+  },
+  seniorHeader: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  seniorTitle: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: colors.white,
+  },
+  seniorSubtitle: {
+    fontSize: 24,
+    color: colors.primary[100],
+    marginTop: 8,
+  },
+  seniorContent: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 32,
+    alignItems: 'center',
+  },
+  seniorCard: {
+    width: '100%',
+    backgroundColor: colors.secondary[50],
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+  },
+  seniorAvatarContainer: {
+    marginBottom: 16,
+  },
+  seniorAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  seniorCaregiverName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  seniorCaregiverInfo: {
+    fontSize: 20,
+    color: colors.textSecondary,
+    marginBottom: 24,
+  },
+  seniorButton: {
+    backgroundColor: colors.primary[600],
+    paddingHorizontal: 48,
+    paddingVertical: 20,
+    borderRadius: 16,
+  },
+  seniorButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.white,
+  },
+  seniorLoadingText: {
+    fontSize: 24,
+    color: colors.textMuted,
+  },
+  seniorEmptyText: {
+    fontSize: 24,
+    color: colors.textMuted,
+  },
   // Caregiver Dashboard Styles
+  biometricBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.error + '15',
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.error,
+    gap: 12,
+  },
+  biometricTextContainer: {
+    flex: 1,
+  },
+  biometricTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.error,
+  },
+  biometricSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   verificationBanner: {
     flexDirection: 'row',
     alignItems: 'center',
