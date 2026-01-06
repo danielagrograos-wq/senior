@@ -589,22 +589,24 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Senior Mode Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acessibilidade</Text>
-          <View style={styles.switchRow}>
-            <View>
-              <Text style={styles.switchLabel}>Modo Sênior</Text>
-              <Text style={styles.switchDescription}>Fontes maiores e contraste alto</Text>
+        {/* Senior Mode Section - Only for non-admin users */}
+        {user?.role !== 'admin' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Acessibilidade</Text>
+            <View style={styles.switchRow}>
+              <View>
+                <Text style={styles.switchLabel}>Modo Sênior</Text>
+                <Text style={styles.switchDescription}>Fontes maiores e contraste alto</Text>
+              </View>
+              <Switch
+                value={seniorMode}
+                onValueChange={toggleSeniorMode}
+                trackColor={{ false: colors.secondary[200], true: colors.primary[300] }}
+                thumbColor={seniorMode ? colors.primary[600] : colors.secondary[400]}
+              />
             </View>
-            <Switch
-              value={seniorMode}
-              onValueChange={toggleSeniorMode}
-              trackColor={{ false: colors.secondary[200], true: colors.primary[300] }}
-              thumbColor={seniorMode ? colors.primary[600] : colors.secondary[400]}
-            />
           </View>
-        </View>
+        )}
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={colors.error} />
