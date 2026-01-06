@@ -164,7 +164,7 @@ class BookingResponse(BaseModel):
     total_cents: int
     notes: Optional[str] = None
     paid: bool = False
-    escrow_status: str = 'pending'
+    escrow_status: Optional[str] = None
     check_in_time: Optional[datetime] = None
     check_out_time: Optional[datetime] = None
     created_at: datetime
