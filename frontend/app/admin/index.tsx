@@ -34,13 +34,16 @@ export default function AdminDashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      if (user?.role !== 'admin') {
+      // Wait for user to load
+      if (!user) return;
+      
+      if (user.role !== 'admin') {
         Alert.alert('Acesso negado', 'Apenas administradores podem acessar esta área.');
         router.back();
         return;
       }
       fetchDashboard();
-    }, [])
+    }, [user])
   );
 
   const fetchDashboard = async () => {
