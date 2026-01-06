@@ -284,6 +284,55 @@ export default function BookingDetailScreen() {
           )}
         </View>
 
+        {/* Chat Button */}
+        <TouchableOpacity 
+          style={styles.chatButton}
+          onPress={async () => {
+            try {
+              const response = await api.post('/chat/rooms', {
+                participant_id: isCaregiver ? booking.client_id : booking.caregiver_user_id,
+                booking_id: booking.id
+              });
+              router.push(`/chat/${response.data.id}`);
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível abrir o chat');
+            }
+          }}
+        >
+          <View style={styles.chatIcon}>
+            <Ionicons name="chatbubbles" size={24} color={colors.primary[600]} />
+          </View>
+          <View style={styles.chatInfo}>
+            <Text style={styles.chatTitle}>Chat com {isCaregiver ? booking.client_name : booking.caregiver_name}</Text>
+            <Text style={styles.chatSubtitle}>Envie mensagens sobre o atendimento</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        {/* Payment Button - Only for clients */}
+        {!isCaregiver && !booking.paid && booking.status !== 'cancelled' && (
+          <TouchableOpacity 
+            style={styles.paymentButton}
+            onPress={() => router.push(`/payment?bookingId=${booking.id}`)}
+          >
+            <View style={styles.paymentIcon}>
+              <Ionicons name="card" size={24} color={colors.white} />
+            </View>
+            <View style={styles.paymentInfo}>
+              <Text style={styles.paymentTitle}>Realizar Pagamento</Text>
+              <Text style={styles.paymentSubtitle}>R$ {(booking.total_cents / 100).toFixed(2)} - Escrow protegido</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.white} />
+          </TouchableOpacity>
+        )}
+
+        {booking.paid && (
+          <View style={styles.paidBadge}>
+            <Ionicons name="shield-checkmark" size={20} color={colors.success} />
+            <Text style={styles.paidText}>Pagamento em custódia</Text>
+          </View>
+        )}
+
         {isCaregiver && (
           <View style={styles.actionsCard}>
             {booking.status === 'pending' && (
