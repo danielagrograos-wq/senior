@@ -1759,14 +1759,15 @@ async def create_or_get_chat_room(data: ChatRoomCreate, user = Depends(get_curre
 async def get_chat_rooms(user = Depends(get_current_user)):
     """Get all chat rooms for user"""
     try:
-        user_id = user['id']
+        user_id = str(user['id'])  # Ensure string
         
-        # Get all rooms and filter manually
+        # Use the same logic as debug endpoint
         all_rooms = await db.chat_rooms.find().to_list(100)
         matching_rooms = []
         
         for room in all_rooms:
-            if user_id in room.get('participants', []):
+            participants = room.get('participants', [])
+            if user_id in participants:
                 if '_id' in room:
                     del room['_id']
                 
@@ -1779,9 +1780,14 @@ async def get_chat_rooms(user = Depends(get_current_user)):
                 room['unread_count'] = unread
                 matching_rooms.append(room)
         
+        # Sort by last_message_at
+        matching_rooms.sort(key=lambda x: x.get('last_message_at') or '', reverse=True)
+        
         return matching_rooms
     except Exception as e:
         logger.error(f"Error in get_chat_rooms: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/chat/rooms/{room_id}/messages")
