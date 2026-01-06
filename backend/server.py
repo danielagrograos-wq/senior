@@ -1967,6 +1967,18 @@ async def debug_chat_rooms():
             del r['_id']
     return {"count": len(rooms), "rooms": rooms}
 
+@api_router.get("/debug/chat-test/{user_id}")
+async def debug_chat_test(user_id: str):
+    """Debug endpoint to test chat query"""
+    all_rooms = await db.chat_rooms.find().to_list(100)
+    matching = []
+    for room in all_rooms:
+        if user_id in room.get('participants', []):
+            if '_id' in room:
+                del room['_id']
+            matching.append(room)
+    return {"user_id": user_id, "total_rooms": len(all_rooms), "matching": len(matching), "rooms": matching}
+
 # Include router and configure CORS
 app.include_router(api_router)
 
