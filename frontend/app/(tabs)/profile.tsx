@@ -552,47 +552,40 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {user?.role === 'caregiver' ? renderCaregiverProfile() : renderClientProfile()}
+        {user?.role === 'caregiver' 
+          ? renderCaregiverProfile() 
+          : user?.role === 'admin' 
+            ? renderAdminProfile() 
+            : renderClientProfile()}
 
-        {/* Quick Links Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acesso Rápido</Text>
-          
-          <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/academy')}>
-            <View style={[styles.quickLinkIcon, { backgroundColor: colors.primary[50] }]}>
-              <Ionicons name="school" size={24} color={colors.primary[600]} />
-            </View>
-            <View style={styles.quickLinkContent}>
-              <Text style={styles.quickLinkTitle}>SeniorCare Academy</Text>
-              <Text style={styles.quickLinkSubtitle}>Aprenda sobre cuidados de idosos</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/notifications')}>
-            <View style={[styles.quickLinkIcon, { backgroundColor: colors.info + '20' }]}>
-              <Ionicons name="notifications" size={24} color={colors.info} />
-            </View>
-            <View style={styles.quickLinkContent}>
-              <Text style={styles.quickLinkTitle}>Notificações</Text>
-              <Text style={styles.quickLinkSubtitle}>Ver todas as notificações</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          {user?.role === 'admin' && (
-            <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/admin')}>
-              <View style={[styles.quickLinkIcon, { backgroundColor: colors.warning + '20' }]}>
-                <Ionicons name="settings" size={24} color={colors.warning} />
+        {/* Quick Links Section - Only for non-admin users */}
+        {user?.role !== 'admin' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Acesso Rápido</Text>
+            
+            <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/academy')}>
+              <View style={[styles.quickLinkIcon, { backgroundColor: colors.primary[50] }]}>
+                <Ionicons name="school" size={24} color={colors.primary[600]} />
               </View>
               <View style={styles.quickLinkContent}>
-                <Text style={styles.quickLinkTitle}>Painel Admin</Text>
-                <Text style={styles.quickLinkSubtitle}>Gerenciar plataforma</Text>
+                <Text style={styles.quickLinkTitle}>SeniorCare Academy</Text>
+                <Text style={styles.quickLinkSubtitle}>Aprenda sobre cuidados de idosos</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
-          )}
-        </View>
+
+            <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/notifications')}>
+              <View style={[styles.quickLinkIcon, { backgroundColor: colors.info + '20' }]}>
+                <Ionicons name="notifications" size={24} color={colors.info} />
+              </View>
+              <View style={styles.quickLinkContent}>
+                <Text style={styles.quickLinkTitle}>Notificações</Text>
+                <Text style={styles.quickLinkSubtitle}>Ver todas as notificações</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Senior Mode Section */}
         <View style={styles.section}>
