@@ -1020,7 +1020,7 @@ async def send_message(message: ChatMessage, user = Depends(get_current_user)):
     
     return ChatMessageResponse(**chat_msg)
 
-@api_router.get("/chat/{recipient_id}", response_model=List[ChatMessageResponse])
+@api_router.get("/chat/legacy/{recipient_id}", response_model=List[ChatMessageResponse])
 async def get_chat_history(recipient_id: str, booking_id: Optional[str] = None, user = Depends(get_current_user)):
     query = {
         '$or': [
