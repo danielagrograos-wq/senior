@@ -501,6 +501,10 @@ async def get_me(user = Depends(get_current_user)):
     elif user['role'] == 'client':
         profile = await db.client_profiles.find_one({'user_id': user['id']})
     
+    # Remove MongoDB _id field
+    if profile and '_id' in profile:
+        del profile['_id']
+    
     # Check for pending notifications
     unread_count = await db.notifications.count_documents({'user_id': user['id'], 'read': False})
     
