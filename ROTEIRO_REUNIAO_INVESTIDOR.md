@@ -36,7 +36,7 @@
 
 **1. Abra o app no celular ou computador:**
 ```
-https://senior-support-18.preview.emergentagent.com
+https://carepro-2.preview.emergentagent.com
 ```
 
 **2. Mostre a tela de login:**

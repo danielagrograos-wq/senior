@@ -40,7 +40,7 @@
 
 ### 🎬 CENA 2: TELA DE LOGIN (0:15 - 0:30)
 
-**[Abrir o app: https://senior-support-18.preview.emergentagent.com]**
+**[Abrir o app: https://carepro-2.preview.emergentagent.com]**
 
 **FALAR:**
 > "O SeniorCare+ conecta famílias a cuidadores verificados. Veja como é simples."
