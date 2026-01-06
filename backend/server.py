@@ -1759,21 +1759,21 @@ async def create_or_get_chat_room(data: ChatRoomCreate, user = Depends(get_curre
 async def get_chat_rooms(user = Depends(get_current_user)):
     """Get all chat rooms for user"""
     user_id = user['id']
-    print(f"DEBUG: Getting chat rooms for user_id: {user_id}")
+    logger.warning(f"DEBUG: Getting chat rooms for user_id: {user_id}")
     
     # First get all rooms
     all_rooms = await db.chat_rooms.find().to_list(100)
-    print(f"DEBUG: Total rooms in DB: {len(all_rooms)}")
+    logger.warning(f"DEBUG: Total rooms in DB: {len(all_rooms)}")
     
     # Filter manually
     matching_rooms = [r for r in all_rooms if user_id in r.get('participants', [])]
-    print(f"DEBUG: Matching rooms: {len(matching_rooms)}")
+    logger.warning(f"DEBUG: Matching rooms: {len(matching_rooms)}")
     
     rooms = await db.chat_rooms.find({
         'participants': user_id
     }).sort('last_message_at', -1).to_list(50)
     
-    print(f"DEBUG: Query result: {len(rooms)} rooms")
+    logger.warning(f"DEBUG: Query result: {len(rooms)} rooms")
     
     result = []
     for room in rooms:
