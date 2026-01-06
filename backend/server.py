@@ -1758,13 +1758,22 @@ async def create_or_get_chat_room(data: ChatRoomCreate, user = Depends(get_curre
 @api_router.get("/chat/rooms")
 async def get_chat_rooms(user = Depends(get_current_user)):
     """Get all chat rooms for user"""
-    logger.info(f"Fetching chat rooms for user: {user['id']}")
+    user_id = user['id']
+    print(f"DEBUG: Getting chat rooms for user_id: {user_id}")
+    
+    # First get all rooms
+    all_rooms = await db.chat_rooms.find().to_list(100)
+    print(f"DEBUG: Total rooms in DB: {len(all_rooms)}")
+    
+    # Filter manually
+    matching_rooms = [r for r in all_rooms if user_id in r.get('participants', [])]
+    print(f"DEBUG: Matching rooms: {len(matching_rooms)}")
     
     rooms = await db.chat_rooms.find({
-        'participants': user['id']
+        'participants': user_id
     }).sort('last_message_at', -1).to_list(50)
     
-    logger.info(f"Found {len(rooms)} rooms")
+    print(f"DEBUG: Query result: {len(rooms)} rooms")
     
     result = []
     for room in rooms:
@@ -1774,7 +1783,7 @@ async def get_chat_rooms(user = Depends(get_current_user)):
         # Count unread messages
         unread = await db.chat_messages.count_documents({
             'room_id': room['id'],
-            'sender_id': {'$ne': user['id']},
+            'sender_id': {'$ne': user_id},
             'read': False
         })
         room['unread_count'] = unread
