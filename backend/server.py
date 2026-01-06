@@ -1869,7 +1869,8 @@ async def send_room_message(room_id: str, data: RoomMessage, user = Depends(get_
                 {'room_id': room_id, 'message_id': msg_id}
             )
     
-    del message['_id'] if '_id' in message else None
+    if '_id' in message:
+        del message['_id']
     return message
 
 # ============ PUSH NOTIFICATION REGISTRATION ============
