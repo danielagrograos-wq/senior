@@ -27,23 +27,33 @@ interface DashboardData {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasCheckedPermission, setHasCheckedPermission] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      // Wait for user to load
-      if (!user) return;
+      // Wait for auth to finish loading
+      if (authLoading) return;
+      
+      // If user is not loaded after auth finished, redirect
+      if (!user) {
+        Alert.alert('Acesso negado', 'Você precisa estar logado.');
+        router.replace('/(auth)/login');
+        return;
+      }
       
       if (user.role !== 'admin') {
         Alert.alert('Acesso negado', 'Apenas administradores podem acessar esta área.');
         router.back();
         return;
       }
+      
+      setHasCheckedPermission(true);
       fetchDashboard();
-    }, [user])
+    }, [user, authLoading])
   );
 
   const fetchDashboard = async () => {
@@ -64,10 +74,12 @@ export default function AdminDashboard() {
 
   const formatCurrency = (cents: number) => `R$ ${(cents / 100).toFixed(2)}`;
 
-  if (isLoading) {
+  // Show loading while auth is loading or permission check hasn't happened yet
+  if (authLoading || !hasCheckedPermission || isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Text style={{ marginTop: 12, color: colors.textSecondary }}>Carregando painel...</Text>
       </SafeAreaView>
     );
   }
