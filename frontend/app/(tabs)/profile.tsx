@@ -538,17 +538,19 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Meu Perfil</Text>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => (isEditing ? saveProfile() : setIsEditing(true))}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <ActivityIndicator size="small" color={colors.primary[600]} />
-          ) : (
-            <Text style={styles.editButtonText}>{isEditing ? 'Salvar' : 'Editar'}</Text>
-          )}
-        </TouchableOpacity>
+        {user?.role !== 'admin' && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => (isEditing ? saveProfile() : setIsEditing(true))}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color={colors.primary[600]} />
+            ) : (
+              <Text style={styles.editButtonText}>{isEditing ? 'Salvar' : 'Editar'}</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
