@@ -1255,10 +1255,10 @@ async def get_caregiver_reviews(caregiver_id: str):
     reviews = await db.reviews.find({'caregiver_id': caregiver_id}).sort('created_at', -1).to_list(100)
     return [ReviewResponse(**r) for r in reviews]
 
-# ============ SENIORCARE ACADEMY ============
+# ============ SENIORCARE ACADEMY (Legacy) ============
 
-@api_router.get("/academy", response_model=List[AcademyContent])
-async def get_academy_content(
+@api_router.get("/academy-legacy", response_model=List[AcademyContent])
+async def get_academy_content_legacy(
     category: Optional[str] = None,
     content_type: Optional[str] = None
 ):
@@ -1315,8 +1315,8 @@ async def get_academy_content(
     
     return [AcademyContent(**c) for c in content]
 
-@api_router.get("/academy/{content_id}", response_model=AcademyContent)
-async def get_academy_content_detail(content_id: str):
+@api_router.get("/academy-legacy/{content_id}", response_model=AcademyContent)
+async def get_academy_content_detail_legacy(content_id: str):
     content = await db.academy_content.find_one({'id': content_id})
     if not content:
         raise HTTPException(status_code=404, detail='Content not found')
