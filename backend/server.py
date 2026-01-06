@@ -1985,6 +1985,16 @@ async def debug_chat_test(user_id: str):
             matching.append(room)
     return {"user_id": user_id, "total_rooms": len(all_rooms), "matching": len(matching), "rooms": matching}
 
+@api_router.get("/debug/whoami")
+async def debug_whoami(user = Depends(get_current_user)):
+    """Debug endpoint to see current user"""
+    return {
+        "user_id": user.get('id'),
+        "user_id_type": str(type(user.get('id'))),
+        "email": user.get('email'),
+        "role": user.get('role')
+    }
+
 # Include router and configure CORS
 app.include_router(api_router)
 
