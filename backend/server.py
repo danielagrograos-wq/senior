@@ -1413,9 +1413,539 @@ async def get_care_levels():
         ]
     }
 
+# ============ STRIPE PAYMENT ENDPOINTS ============
+
+# Stripe Test Mode Keys (replace with real keys for production)
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', 'sk_test_mock_key')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', 'pk_test_mock_key')
+PLATFORM_FEE_PERCENT = 15
+
+class PaymentIntentCreate(BaseModel):
+    booking_id: str
+    payment_method_id: Optional[str] = None
+
+class FamilyShareInvite(BaseModel):
+    booking_id: str
+    email: EmailStr
+    share_percent: int = Field(ge=1, le=100)
+
+class FamilyShareResponse(BaseModel):
+    id: str
+    booking_id: str
+    inviter_id: str
+    inviter_name: str
+    invitee_email: str
+    share_percent: int
+    status: str
+    amount_cents: int
+    paid: bool
+    created_at: datetime
+
+@api_router.post("/payments/create-intent")
+async def create_payment_intent(data: PaymentIntentCreate, user = Depends(get_current_user)):
+    """Create a Stripe payment intent for a booking"""
+    booking = await db.bookings.find_one({'id': data.booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    if booking['client_id'] != user['id']:
+        raise HTTPException(status_code=403, detail='Access denied')
+    
+    if booking.get('paid'):
+        raise HTTPException(status_code=400, detail='Booking already paid')
+    
+    # Create mock payment intent (in production, use real Stripe API)
+    payment_intent_id = f"pi_{uuid.uuid4().hex[:24]}"
+    client_secret = f"{payment_intent_id}_secret_{uuid.uuid4().hex[:12]}"
+    
+    # Store payment record
+    payment = {
+        'id': str(uuid.uuid4()),
+        'payment_intent_id': payment_intent_id,
+        'booking_id': data.booking_id,
+        'client_id': user['id'],
+        'amount_cents': booking['total_cents'],
+        'currency': 'brl',
+        'status': 'requires_payment_method',
+        'created_at': datetime.utcnow()
+    }
+    await db.payments.insert_one(payment)
+    
+    return {
+        'payment_intent_id': payment_intent_id,
+        'client_secret': client_secret,
+        'amount_cents': booking['total_cents'],
+        'publishable_key': STRIPE_PUBLISHABLE_KEY
+    }
+
+@api_router.post("/payments/confirm")
+async def confirm_payment(booking_id: str, payment_intent_id: str, user = Depends(get_current_user)):
+    """Confirm payment and update booking status"""
+    booking = await db.bookings.find_one({'id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    # Simulate successful payment (in production, verify with Stripe)
+    await db.payments.update_one(
+        {'payment_intent_id': payment_intent_id},
+        {'$set': {'status': 'succeeded', 'confirmed_at': datetime.utcnow()}}
+    )
+    
+    await db.bookings.update_one(
+        {'id': booking_id},
+        {'$set': {'paid': True, 'escrow_status': 'held', 'paid_at': datetime.utcnow()}}
+    )
+    
+    # Notify caregiver
+    await create_notification(
+        booking['caregiver_user_id'],
+        'Pagamento recebido!',
+        f'O pagamento para o atendimento de {booking["elder_name"]} foi confirmado',
+        'payment_received',
+        {'booking_id': booking_id}
+    )
+    
+    return {'success': True, 'message': 'Payment confirmed'}
+
+@api_router.post("/payments/release-escrow")
+async def release_escrow(booking_id: str, user = Depends(get_current_user)):
+    """Release escrow payment to caregiver after service completion"""
+    booking = await db.bookings.find_one({'id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    if booking['status'] != 'completed':
+        raise HTTPException(status_code=400, detail='Booking must be completed first')
+    
+    if booking.get('escrow_status') != 'held':
+        raise HTTPException(status_code=400, detail='Escrow not available for release')
+    
+    # Calculate caregiver payout (total - platform fee)
+    caregiver_payout = booking['price_cents']
+    
+    # Record payout
+    payout = {
+        'id': str(uuid.uuid4()),
+        'booking_id': booking_id,
+        'caregiver_id': booking['caregiver_id'],
+        'amount_cents': caregiver_payout,
+        'status': 'completed',
+        'created_at': datetime.utcnow()
+    }
+    await db.payouts.insert_one(payout)
+    
+    await db.bookings.update_one(
+        {'id': booking_id},
+        {'$set': {'escrow_status': 'released', 'released_at': datetime.utcnow()}}
+    )
+    
+    # Notify caregiver
+    await create_notification(
+        booking['caregiver_user_id'],
+        'Pagamento liberado!',
+        f'R$ {caregiver_payout/100:.2f} foi transferido para sua conta',
+        'payout_completed',
+        {'booking_id': booking_id, 'amount_cents': caregiver_payout}
+    )
+    
+    return {'success': True, 'payout_cents': caregiver_payout}
+
+@api_router.get("/payments/history")
+async def get_payment_history(user = Depends(get_current_user)):
+    """Get payment history for user"""
+    if user['role'] == 'client':
+        payments = await db.payments.find({'client_id': user['id']}).sort('created_at', -1).to_list(50)
+    else:
+        profile = await db.caregiver_profiles.find_one({'user_id': user['id']})
+        if not profile:
+            return []
+        payouts = await db.payouts.find({'caregiver_id': profile['id']}).sort('created_at', -1).to_list(50)
+        return payouts
+    
+    # Remove _id for serialization
+    for p in payments:
+        if '_id' in p:
+            del p['_id']
+    
+    return payments
+
+# ============ FAMILY SHARE ENDPOINTS ============
+
+@api_router.post("/family-share/invite", response_model=FamilyShareResponse)
+async def invite_family_share(invite: FamilyShareInvite, user = Depends(get_current_user)):
+    """Invite a family member to share the cost of a booking"""
+    booking = await db.bookings.find_one({'id': invite.booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    if booking['client_id'] != user['id']:
+        raise HTTPException(status_code=403, detail='Only booking owner can invite')
+    
+    # Check total shares don't exceed 100%
+    existing_shares = await db.family_shares.find({'booking_id': invite.booking_id}).to_list(100)
+    total_shared = sum(s['share_percent'] for s in existing_shares)
+    if total_shared + invite.share_percent > 100:
+        raise HTTPException(status_code=400, detail=f'Total share cannot exceed 100%. Current: {total_shared}%')
+    
+    share_amount = int(booking['total_cents'] * invite.share_percent / 100)
+    
+    share_id = str(uuid.uuid4())
+    share = {
+        'id': share_id,
+        'booking_id': invite.booking_id,
+        'inviter_id': user['id'],
+        'inviter_name': user['name'],
+        'invitee_email': invite.email,
+        'invitee_id': None,  # Will be set when user accepts
+        'share_percent': invite.share_percent,
+        'amount_cents': share_amount,
+        'status': 'pending',
+        'paid': False,
+        'created_at': datetime.utcnow()
+    }
+    await db.family_shares.insert_one(share)
+    
+    # Create notification for invitee if they're a user
+    invitee = await db.users.find_one({'email': invite.email})
+    if invitee:
+        await create_notification(
+            invitee['id'],
+            'Convite Family Share',
+            f'{user["name"]} convidou você para dividir os custos de um cuidado (R$ {share_amount/100:.2f})',
+            'family_share_invite',
+            {'share_id': share_id, 'booking_id': invite.booking_id}
+        )
+    
+    return FamilyShareResponse(**share)
+
+@api_router.get("/family-share/{booking_id}")
+async def get_family_shares(booking_id: str, user = Depends(get_current_user)):
+    """Get all family shares for a booking"""
+    booking = await db.bookings.find_one({'id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    shares = await db.family_shares.find({'booking_id': booking_id}).to_list(100)
+    
+    for s in shares:
+        if '_id' in s:
+            del s['_id']
+    
+    # Calculate owner's share
+    total_shared = sum(s['share_percent'] for s in shares)
+    owner_share = 100 - total_shared
+    owner_amount = int(booking['total_cents'] * owner_share / 100)
+    
+    return {
+        'shares': shares,
+        'owner_share_percent': owner_share,
+        'owner_amount_cents': owner_amount,
+        'total_cents': booking['total_cents']
+    }
+
+@api_router.put("/family-share/{share_id}/accept")
+async def accept_family_share(share_id: str, user = Depends(get_current_user)):
+    """Accept a family share invitation"""
+    share = await db.family_shares.find_one({'id': share_id})
+    if not share:
+        raise HTTPException(status_code=404, detail='Share not found')
+    
+    if share['invitee_email'] != user['email']:
+        raise HTTPException(status_code=403, detail='This invitation is for a different email')
+    
+    await db.family_shares.update_one(
+        {'id': share_id},
+        {'$set': {'status': 'accepted', 'invitee_id': user['id'], 'accepted_at': datetime.utcnow()}}
+    )
+    
+    # Notify inviter
+    await create_notification(
+        share['inviter_id'],
+        'Convite aceito!',
+        f'{user["name"]} aceitou dividir o custo do cuidado',
+        'family_share_accepted',
+        {'share_id': share_id}
+    )
+    
+    return {'success': True, 'message': 'Share accepted'}
+
+@api_router.post("/family-share/{share_id}/pay")
+async def pay_family_share(share_id: str, user = Depends(get_current_user)):
+    """Pay a family share"""
+    share = await db.family_shares.find_one({'id': share_id})
+    if not share:
+        raise HTTPException(status_code=404, detail='Share not found')
+    
+    if share['invitee_id'] != user['id']:
+        raise HTTPException(status_code=403, detail='Access denied')
+    
+    if share.get('paid'):
+        raise HTTPException(status_code=400, detail='Already paid')
+    
+    # Simulate payment
+    await db.family_shares.update_one(
+        {'id': share_id},
+        {'$set': {'paid': True, 'paid_at': datetime.utcnow()}}
+    )
+    
+    # Check if all shares are paid
+    booking_shares = await db.family_shares.find({'booking_id': share['booking_id']}).to_list(100)
+    all_paid = all(s.get('paid', False) for s in booking_shares)
+    
+    if all_paid:
+        # Mark booking as fully paid
+        await db.bookings.update_one(
+            {'id': share['booking_id']},
+            {'$set': {'paid': True, 'escrow_status': 'held'}}
+        )
+    
+    return {'success': True, 'message': 'Payment completed'}
+
+# ============ ENHANCED CHAT ENDPOINTS ============
+
+class ChatRoomCreate(BaseModel):
+    participant_id: str
+    booking_id: Optional[str] = None
+
+class ChatRoomResponse(BaseModel):
+    id: str
+    participants: List[str]
+    participant_names: Dict[str, str]
+    booking_id: Optional[str]
+    last_message: Optional[str]
+    last_message_at: Optional[datetime]
+    unread_count: int
+    created_at: datetime
+
+@api_router.post("/chat/rooms")
+async def create_or_get_chat_room(data: ChatRoomCreate, user = Depends(get_current_user)):
+    """Create or get existing chat room between two users"""
+    participants = sorted([user['id'], data.participant_id])
+    
+    # Check if room already exists
+    existing = await db.chat_rooms.find_one({
+        'participants': participants,
+        'booking_id': data.booking_id
+    })
+    
+    if existing:
+        if '_id' in existing:
+            del existing['_id']
+        return existing
+    
+    # Get participant info
+    other_user = await db.users.find_one({'id': data.participant_id})
+    if not other_user:
+        raise HTTPException(status_code=404, detail='User not found')
+    
+    room_id = str(uuid.uuid4())
+    room = {
+        'id': room_id,
+        'participants': participants,
+        'participant_names': {
+            user['id']: user['name'],
+            data.participant_id: other_user['name']
+        },
+        'booking_id': data.booking_id,
+        'last_message': None,
+        'last_message_at': None,
+        'created_at': datetime.utcnow()
+    }
+    await db.chat_rooms.insert_one(room)
+    
+    return room
+
+@api_router.get("/chat/rooms")
+async def get_chat_rooms(user = Depends(get_current_user)):
+    """Get all chat rooms for user"""
+    rooms = await db.chat_rooms.find({
+        'participants': user['id']
+    }).sort('last_message_at', -1).to_list(50)
+    
+    result = []
+    for room in rooms:
+        if '_id' in room:
+            del room['_id']
+        
+        # Count unread messages
+        unread = await db.chat_messages.count_documents({
+            'room_id': room['id'],
+            'sender_id': {'$ne': user['id']},
+            'read': False
+        })
+        room['unread_count'] = unread
+        result.append(room)
+    
+    return result
+
+@api_router.get("/chat/rooms/{room_id}/messages")
+async def get_room_messages(room_id: str, limit: int = 50, user = Depends(get_current_user)):
+    """Get messages from a chat room"""
+    room = await db.chat_rooms.find_one({'id': room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail='Room not found')
+    
+    if user['id'] not in room['participants']:
+        raise HTTPException(status_code=403, detail='Access denied')
+    
+    messages = await db.chat_messages.find({'room_id': room_id}).sort('created_at', -1).limit(limit).to_list(limit)
+    
+    # Mark as read
+    await db.chat_messages.update_many(
+        {'room_id': room_id, 'sender_id': {'$ne': user['id']}, 'read': False},
+        {'$set': {'read': True, 'read_at': datetime.utcnow()}}
+    )
+    
+    for m in messages:
+        if '_id' in m:
+            del m['_id']
+    
+    return list(reversed(messages))
+
+class RoomMessage(BaseModel):
+    message: str
+    message_type: Literal['text', 'image', 'care_update', 'system'] = 'text'
+    image_base64: Optional[str] = None
+
+@api_router.post("/chat/rooms/{room_id}/messages")
+async def send_room_message(room_id: str, data: RoomMessage, user = Depends(get_current_user)):
+    """Send a message in a chat room"""
+    room = await db.chat_rooms.find_one({'id': room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail='Room not found')
+    
+    if user['id'] not in room['participants']:
+        raise HTTPException(status_code=403, detail='Access denied')
+    
+    # Block external contact info if booking not confirmed
+    if room.get('booking_id'):
+        booking = await db.bookings.find_one({'id': room['booking_id']})
+        if booking and booking['status'] == 'pending':
+            # Check for phone/email patterns
+            import re
+            contact_patterns = [
+                r'\d{2}[\s-]?\d{4,5}[\s-]?\d{4}',  # Phone
+                r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',  # Email
+                r'whatsapp',
+                r'telegram',
+                r'instagram',
+            ]
+            message_lower = data.message.lower()
+            for pattern in contact_patterns:
+                if re.search(pattern, message_lower, re.IGNORECASE):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail='Informações de contato externas são bloqueadas até a confirmação do agendamento'
+                    )
+    
+    msg_id = str(uuid.uuid4())
+    message = {
+        'id': msg_id,
+        'room_id': room_id,
+        'sender_id': user['id'],
+        'sender_name': user['name'],
+        'message': data.message,
+        'message_type': data.message_type,
+        'image_base64': data.image_base64,
+        'read': False,
+        'created_at': datetime.utcnow()
+    }
+    await db.chat_messages.insert_one(message)
+    
+    # Update room
+    await db.chat_rooms.update_one(
+        {'id': room_id},
+        {'$set': {'last_message': data.message[:50], 'last_message_at': datetime.utcnow()}}
+    )
+    
+    # Notify other participants
+    for participant_id in room['participants']:
+        if participant_id != user['id']:
+            await create_notification(
+                participant_id,
+                f'Nova mensagem de {user["name"]}',
+                data.message[:50] + ('...' if len(data.message) > 50 else ''),
+                'chat_message',
+                {'room_id': room_id, 'message_id': msg_id}
+            )
+    
+    del message['_id'] if '_id' in message else None
+    return message
+
+# ============ PUSH NOTIFICATION REGISTRATION ============
+
+class PushTokenRegister(BaseModel):
+    push_token: str
+    device_type: Literal['ios', 'android', 'web'] = 'android'
+
+@api_router.post("/notifications/register-push")
+async def register_push_token(data: PushTokenRegister, user = Depends(get_current_user)):
+    """Register device push token for notifications"""
+    # Store push token
+    await db.push_tokens.update_one(
+        {'user_id': user['id'], 'push_token': data.push_token},
+        {'$set': {
+            'user_id': user['id'],
+            'push_token': data.push_token,
+            'device_type': data.device_type,
+            'active': True,
+            'updated_at': datetime.utcnow()
+        }},
+        upsert=True
+    )
+    
+    return {'success': True, 'message': 'Push token registered'}
+
+@api_router.delete("/notifications/unregister-push")
+async def unregister_push_token(push_token: str, user = Depends(get_current_user)):
+    """Unregister device push token"""
+    await db.push_tokens.update_one(
+        {'user_id': user['id'], 'push_token': push_token},
+        {'$set': {'active': False}}
+    )
+    return {'success': True, 'message': 'Push token unregistered'}
+
+# Helper function to send push notification
+async def send_push_notification(user_id: str, title: str, body: str, data: dict = None):
+    """Send push notification via Expo Push API"""
+    tokens = await db.push_tokens.find({'user_id': user_id, 'active': True}).to_list(10)
+    
+    if not tokens:
+        return
+    
+    messages = []
+    for token_doc in tokens:
+        message = {
+            'to': token_doc['push_token'],
+            'sound': 'default',
+            'title': title,
+            'body': body,
+            'data': data or {}
+        }
+        messages.append(message)
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                'https://exp.host/--/api/v2/push/send',
+                json=messages,
+                headers={'Content-Type': 'application/json'},
+                timeout=10.0
+            )
+            logger.info(f"Push notification sent: {response.status_code}")
+    except Exception as e:
+        logger.error(f"Failed to send push notification: {e}")
+
+# Update create_notification to also send push
+async def create_notification_with_push(user_id: str, title: str, message: str, notification_type: str, data: dict = None):
+    """Create notification and send push"""
+    notification = await create_notification(user_id, title, message, notification_type, data)
+    await send_push_notification(user_id, title, message, data)
+    return notification
+
 @api_router.get("/")
 async def root():
-    return {"message": "SeniorCare+ API", "version": "2.0.0"}
+    return {"message": "SeniorCare+ API", "version": "2.1.0"}
 
 @api_router.get("/health")
 async def health():
