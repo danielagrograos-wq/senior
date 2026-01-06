@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { api } from '../services/api';
+import { registerForPushNotifications, addNotificationResponseReceivedListener } from '../services/notifications';
 
 interface User {
   id: string;
@@ -19,6 +21,7 @@ interface AuthContextType {
   isLoading: boolean;
   unreadNotifications: number;
   seniorMode: boolean;
+  pushToken: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, phone: string, password: string, role: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -35,9 +38,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [seniorMode, setSeniorMode] = useState(false);
+  const [pushToken, setPushToken] = useState<string | null>(null);
 
   useEffect(() => {
     loadStoredAuth();
+    
+    // Listen for notification taps
+    const subscription = addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      console.log('Notification tapped:', data);
+      // Handle navigation based on notification type
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const loadStoredAuth = async () => {
@@ -59,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUnreadNotifications(response.data.unread_notifications || 0);
           setSeniorMode(response.data.user.senior_mode || false);
           await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+          
+          // Register for push notifications
+          if (Platform.OS !== 'web') {
+            const token = await registerForPushNotifications();
+            if (token) setPushToken(token);
+          }
         } catch (error) {
           await logout();
         }
