@@ -360,6 +360,70 @@ export default function ProfileScreen() {
     </>
   );
 
+  const renderAdminProfile = () => (
+    <>
+      <View style={styles.photoSection}>
+        <View style={[styles.photo, styles.photoPlaceholder, { backgroundColor: colors.warning + '30' }]}>
+          <Ionicons name="shield-checkmark" size={40} color={colors.warning} />
+        </View>
+        <Text style={styles.userName}>{user?.name}</Text>
+        <Text style={styles.userRole}>Administrador</Text>
+        <View style={[styles.verifiedBadge, { backgroundColor: colors.warning + '20' }]}>
+          <Ionicons name="key" size={16} color={colors.warning} />
+          <Text style={[styles.verifiedText, { color: colors.warning }]}>Acesso Total</Text>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>⚡ Gerenciamento</Text>
+        
+        <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/admin')}>
+          <View style={[styles.quickLinkIcon, { backgroundColor: colors.primary[50] }]}>
+            <Ionicons name="stats-chart" size={24} color={colors.primary[600]} />
+          </View>
+          <View style={styles.quickLinkContent}>
+            <Text style={styles.quickLinkTitle}>Painel Admin</Text>
+            <Text style={styles.quickLinkSubtitle}>Dashboard completo da plataforma</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/admin/users')}>
+          <View style={[styles.quickLinkIcon, { backgroundColor: colors.info + '20' }]}>
+            <Ionicons name="people" size={24} color={colors.info} />
+          </View>
+          <View style={styles.quickLinkContent}>
+            <Text style={styles.quickLinkTitle}>Gerenciar Usuários</Text>
+            <Text style={styles.quickLinkSubtitle}>Ver e editar todos os usuários</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/admin/pending')}>
+          <View style={[styles.quickLinkIcon, { backgroundColor: colors.warning + '20' }]}>
+            <Ionicons name="shield-checkmark" size={24} color={colors.warning} />
+          </View>
+          <View style={styles.quickLinkContent}>
+            <Text style={styles.quickLinkTitle}>Verificações Pendentes</Text>
+            <Text style={styles.quickLinkSubtitle}>Aprovar cuidadores</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.quickLink} onPress={() => router.push('/admin/bookings')}>
+          <View style={[styles.quickLinkIcon, { backgroundColor: colors.success + '20' }]}>
+            <Ionicons name="calendar" size={24} color={colors.success} />
+          </View>
+          <View style={styles.quickLinkContent}>
+            <Text style={styles.quickLinkTitle}>Agendamentos</Text>
+            <Text style={styles.quickLinkSubtitle}>Gerenciar todos os agendamentos</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
   const renderClientProfile = () => (
     <>
       <View style={styles.photoSection}>
