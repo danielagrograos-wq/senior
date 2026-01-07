@@ -389,8 +389,11 @@ export default function LandingPage() {
           <AnimatedPhone />
         </View>
 
-        {/* Video Demo Section */}
-        <VideoSection />
+        {/* How It Works Visual Section */}
+        <HowItWorksSection />
+        
+        {/* Admin Video Configuration (only visible to admin) */}
+        <AdminVideoSection isAdmin={false} />
 
         {/* Features Section */}
         <View style={styles.section}>
