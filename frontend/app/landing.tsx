@@ -143,70 +143,171 @@ const TestimonialCard = ({ name, role, text, avatar }: any) => (
   </View>
 );
 
-// Video Section Component
-const VideoSection = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
+// Visual Step Card for How It Works
+const VisualStepCard = ({ number, title, description, icon, iconBg, illustration }: any) => (
+  <View style={styles.visualStepCard}>
+    <View style={[styles.visualStepIconContainer, { backgroundColor: iconBg }]}>
+      <View style={styles.visualStepNumber}>
+        <Text style={styles.visualStepNumberText}>{number}</Text>
+      </View>
+      <View style={styles.visualStepIconCircle}>
+        <Ionicons name={icon} size={48} color={colors.white} />
+      </View>
+      {illustration && (
+        <View style={styles.illustrationElements}>
+          {illustration}
+        </View>
+      )}
+    </View>
+    <Text style={styles.visualStepTitle}>{title}</Text>
+    <Text style={styles.visualStepDesc}>{description}</Text>
+  </View>
+);
+
+// How It Works Section with Visual Steps
+const HowItWorksSection = () => {
+  const steps = [
+    {
+      number: '1',
+      title: 'Crie sua Conta',
+      description: 'Cadastre-se gratuitamente em menos de 2 minutos. Escolha se você é família buscando cuidador ou um profissional oferecendo seus serviços.',
+      icon: 'person-add',
+      iconBg: colors.primary,
+    },
+    {
+      number: '2',
+      title: 'Complete seu Perfil',
+      description: 'Famílias: informe as necessidades do idoso. Cuidadores: adicione suas especialidades, experiência e certificações.',
+      icon: 'clipboard',
+      iconBg: colors.secondary,
+    },
+    {
+      number: '3',
+      title: 'Encontre o Match Perfeito',
+      description: 'Nossa inteligência artificial analisa compatibilidade e sugere os melhores profissionais para suas necessidades específicas.',
+      icon: 'heart',
+      iconBg: colors.error,
+    },
+    {
+      number: '4',
+      title: 'Converse com Segurança',
+      description: 'Use nosso chat integrado para conhecer o cuidador, tirar dúvidas e alinhar expectativas antes de contratar.',
+      icon: 'chatbubbles',
+      iconBg: colors.primaryLight,
+    },
+    {
+      number: '5',
+      title: 'Agende e Pague',
+      description: 'Escolha datas e horários pelo calendário. Pagamento seguro com sistema de escrow que protege ambas as partes.',
+      icon: 'calendar',
+      iconBg: colors.primaryDark,
+    },
+    {
+      number: '6',
+      title: 'Acompanhe em Tempo Real',
+      description: 'Receba atualizações pelo Care Log: medicamentos, refeições, atividades e humor do seu familiar, tudo registrado.',
+      icon: 'eye',
+      iconBg: colors.success,
+    },
+  ];
+
+  return (
+    <View style={styles.howItWorksSection}>
+      <Text style={styles.sectionTitle}>📱 Veja Como Funciona</Text>
+      <Text style={styles.sectionSubtitle}>
+        Em apenas 6 passos simples, você encontra o cuidador ideal para sua família
+      </Text>
+      
+      <View style={styles.stepsTimeline}>
+        {steps.map((step, index) => (
+          <View key={index} style={styles.timelineItem}>
+            <View style={styles.timelineLeft}>
+              <View style={[styles.timelineCircle, { backgroundColor: step.iconBg }]}>
+                <Ionicons name={step.icon as any} size={28} color={colors.white} />
+              </View>
+              {index < steps.length - 1 && <View style={styles.timelineLine} />}
+            </View>
+            <View style={styles.timelineContent}>
+              <View style={styles.timelineHeader}>
+                <View style={[styles.stepBadge, { backgroundColor: step.iconBg + '20' }]}>
+                  <Text style={[styles.stepBadgeText, { color: step.iconBg }]}>Passo {step.number}</Text>
+                </View>
+              </View>
+              <Text style={styles.timelineTitle}>{step.title}</Text>
+              <Text style={styles.timelineDesc}>{step.description}</Text>
+              
+              {/* Visual illustration for each step */}
+              <View style={[styles.stepIllustration, { borderColor: step.iconBg + '30' }]}>
+                <View style={styles.illustrationInner}>
+                  <View style={[styles.illustrationIcon, { backgroundColor: step.iconBg + '15' }]}>
+                    <Ionicons name={step.icon as any} size={32} color={step.iconBg} />
+                  </View>
+                  <View style={styles.illustrationLines}>
+                    <View style={[styles.illustrationLine, { backgroundColor: step.iconBg + '40', width: '80%' }]} />
+                    <View style={[styles.illustrationLine, { backgroundColor: step.iconBg + '30', width: '60%' }]} />
+                    <View style={[styles.illustrationLine, { backgroundColor: step.iconBg + '20', width: '40%' }]} />
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* Quick Summary Cards */}
+      <View style={styles.summaryCards}>
+        <View style={styles.summaryCard}>
+          <Ionicons name="time-outline" size={32} color={colors.primary} />
+          <Text style={styles.summaryNumber}>2 min</Text>
+          <Text style={styles.summaryLabel}>para cadastrar</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Ionicons name="flash-outline" size={32} color={colors.secondary} />
+          <Text style={styles.summaryNumber}>24h</Text>
+          <Text style={styles.summaryLabel}>para encontrar</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Ionicons name="shield-checkmark-outline" size={32} color={colors.success} />
+          <Text style={styles.summaryNumber}>100%</Text>
+          <Text style={styles.summaryLabel}>verificados</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+// Admin Video Section (only visible to admin)
+const AdminVideoSection = ({ isAdmin }: { isAdmin: boolean }) => {
+  const [videoUrl, setVideoUrl] = useState('');
+  
+  if (!isAdmin) return null;
   
   return (
-    <View style={styles.videoSection}>
-      <Text style={styles.sectionTitle}>🎬 Veja Como Funciona</Text>
-      <Text style={styles.sectionSubtitle}>Assista ao vídeo e descubra como o SeniorCare+ pode ajudar sua família</Text>
-      
-      <View style={styles.videoContainer}>
-        {!isPlaying ? (
-          <TouchableOpacity style={styles.videoPlaceholder} onPress={() => setIsPlaying(true)}>
-            <LinearGradient
-              colors={[colors.primary, colors.primaryDark]}
-              style={styles.videoGradient}
-            >
-              <View style={styles.playButton}>
-                <Ionicons name="play" size={48} color={colors.white} />
-              </View>
-              <Text style={styles.videoPlayText}>Assistir Vídeo Demo</Text>
-              <Text style={styles.videoDuration}>2:30 min</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.videoPlayer}>
-            {/* Animated Demo Content */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.demoScroll}>
-              <View style={styles.demoSlide}>
-                <Ionicons name="person-add" size={64} color={colors.primary} />
-                <Text style={styles.demoTitle}>1. Cadastre-se</Text>
-                <Text style={styles.demoText}>Crie sua conta como família ou cuidador em menos de 2 minutos</Text>
-              </View>
-              <View style={styles.demoSlide}>
-                <Ionicons name="search" size={64} color={colors.primary} />
-                <Text style={styles.demoTitle}>2. Busque</Text>
-                <Text style={styles.demoText}>Encontre cuidadores verificados na sua região</Text>
-              </View>
-              <View style={styles.demoSlide}>
-                <Ionicons name="heart" size={64} color={colors.error} />
-                <Text style={styles.demoTitle}>3. Match Inteligente</Text>
-                <Text style={styles.demoText}>Nossa IA encontra o profissional ideal para você</Text>
-              </View>
-              <View style={styles.demoSlide}>
-                <Ionicons name="chatbubbles" size={64} color={colors.primaryLight} />
-                <Text style={styles.demoTitle}>4. Converse</Text>
-                <Text style={styles.demoText}>Chat seguro para conhecer o cuidador</Text>
-              </View>
-              <View style={styles.demoSlide}>
-                <Ionicons name="calendar" size={64} color={colors.secondary} />
-                <Text style={styles.demoTitle}>5. Agende</Text>
-                <Text style={styles.demoText}>Marque horários direto pelo app</Text>
-              </View>
-              <View style={styles.demoSlide}>
-                <Ionicons name="shield-checkmark" size={64} color={colors.success} />
-                <Text style={styles.demoTitle}>6. Cuide com Confiança</Text>
-                <Text style={styles.demoText}>Acompanhe tudo em tempo real</Text>
-              </View>
-            </ScrollView>
-            <TouchableOpacity style={styles.closeVideo} onPress={() => setIsPlaying(false)}>
-              <Text style={styles.closeVideoText}>Fechar Demonstração</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+    <View style={styles.adminVideoSection}>
+      <View style={styles.adminBadge}>
+        <Ionicons name="shield" size={16} color={colors.white} />
+        <Text style={styles.adminBadgeText}>Área do Administrador</Text>
       </View>
+      <Text style={styles.adminTitle}>🎬 Configurar Vídeo Promocional</Text>
+      <Text style={styles.adminDesc}>
+        Cole a URL do YouTube ou Vimeo para exibir um vídeo promocional nesta seção.
+        Apenas você (admin) pode ver esta configuração.
+      </Text>
+      <View style={styles.adminInputRow}>
+        <View style={styles.adminInput}>
+          <Ionicons name="link" size={20} color={colors.textMuted} />
+          <Text style={styles.adminInputPlaceholder}>
+            {videoUrl || 'Cole a URL do vídeo aqui...'}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.adminSaveBtn}>
+          <Ionicons name="save" size={20} color={colors.white} />
+          <Text style={styles.adminSaveBtnText}>Salvar</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.adminNote}>
+        💡 Dica: Grave um vídeo de 2-3 minutos mostrando as principais funcionalidades do app.
+      </Text>
     </View>
   );
 };
