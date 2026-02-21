@@ -180,9 +180,14 @@ class CareLogResponse(BaseModel):
     id: str
     booking_id: str
     caregiver_id: str
+    caregiver_name: Optional[str] = None
     entry_type: str
+    log_type: Optional[str] = None
     description: str
     vital_signs: Optional[Dict[str, Any]] = None
+    mood: Optional[str] = None
+    medication_given: Optional[str] = None
+    meal_description: Optional[str] = None
     photo_base64: Optional[str] = None
     created_at: datetime
 
