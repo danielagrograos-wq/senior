@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeniorCare+ | Pitch Deck</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #1a1a2e;
+        }
+        
+        .slide {
+            width: 100%;
+            max-width: 1200px;
+            min-height: 700px;
+            margin: 20px auto;
+            background: white;
+            padding: 60px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            page-break-after: always;
+            position: relative;
+        }
+        
+        .slide-number {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .logo {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #14B8A6;
+        }
+        
+        h1 {
+            font-size: 48px;
+            color: #1A5276;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            font-size: 36px;
+            color: #1A5276;
+            margin-bottom: 30px;
+            border-bottom: 4px solid #14B8A6;
+            padding-bottom: 15px;
+            display: inline-block;
+        }
+        
+        h3 {
+            font-size: 24px;
+            color: #333;
+            margin: 20px 0 15px;
+        }
+        
+        p, li {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #444;
+        }
+        
+        .subtitle {
+            font-size: 28px;
+            color: #14B8A6;
+            margin-bottom: 40px;
+        }
+        
+        .tagline {
+            font-size: 24px;
+            color: #666;
+            font-style: italic;
+            margin-top: 30px;
+        }
+        
+        /* Cover Slide */
+        .cover {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, #1A5276 0%, #14B8A6 100%);
+            color: white;
+        }
+        
+        .cover h1 {
+            font-size: 72px;
+            color: white;
+            margin-bottom: 10px;
+        }
+        
+        .cover .subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 32px;
+        }
+        
+        .cover .tagline {
+            color: rgba(255,255,255,0.8);
+            margin-top: 60px;
+            font-size: 28px;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #14B8A6, #0d9488);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+        }
+        
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        
+        .stat-card.danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        .stat-card.blue {
+            background: linear-gradient(135deg, #1A5276, #1e40af);
+        }
+        
+        .stat-number {
+            font-size: 56px;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        
+        /* Problem Boxes */
+        .problem-list {
+            list-style: none;
+            margin: 30px 0;
+        }
+        
+        .problem-list li {
+            padding: 20px 25px;
+            background: #fef2f2;
+            border-left: 5px solid #ef4444;
+            margin-bottom: 15px;
+            border-radius: 0 12px 12px 0;
+            font-size: 22px;
+        }
+        
+        .problem-list li span {
+            font-size: 28px;
+            margin-right: 15px;
+        }
+        
+        /* Solution Cards */
+        .solution-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .solution-card {
+            background: #f0fdfa;
+            border: 2px solid #14B8A6;
+            padding: 25px;
+            border-radius: 16px;
+        }
+        
+        .solution-card h4 {
+            color: #14B8A6;
+            font-size: 22px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .solution-card p {
+            font-size: 16px;
+            color: #555;
+        }
+        
+        /* TAM SAM SOM */
+        .tam-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 40px 0;
+        }
+        
+        .circle {
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+        
+        .tam {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #1A5276, #1e3a5f);
+        }
+        
+        .sam {
+            width: 280px;
+            height: 280px;
+            background: linear-gradient(135deg, #14B8A6, #0d9488);
+            position: absolute;
+        }
+        
+        .som {
+            width: 140px;
+            height: 140px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            position: absolute;
+        }
+        
+        .circle-label {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .circle-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .circle-desc {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        /* Revenue Model */
+        .revenue-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+        }
+        
+        .revenue-table th, .revenue-table td {
+            padding: 20px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 18px;
+        }
+        
+        .revenue-table th {
+            background: #1A5276;
+            color: white;
+            font-size: 16px;
+        }
+        
+        .revenue-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        .highlight {
+            background: #14B8A6;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        /* Projection Chart */
+        .chart-container {
+            margin: 40px 0;
+        }
+        
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 300px;
+            padding: 20px 0;
+            border-bottom: 3px solid #1A5276;
+        }
+        
+        .bar-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .bar {
+            width: 80px;
+            background: linear-gradient(180deg, #14B8A6, #0d9488);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 10px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .bar-label {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .bar-value {
+            font-size: 14px;
+            color: #14B8A6;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            margin: 30px 0;
+        }
+        
+        .comparison-table th, .comparison-table td {
+            padding: 18px;
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .comparison-table th {
+            background: #1A5276;
+            color: white;
+        }
+        
+        .comparison-table th:first-child {
+            text-align: left;
+        }
+        
+        .comparison-table td:first-child {
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .comparison-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        
+        .check {
+            color: #14B8A6;
+            font-size: 24px;
+        }
+        
+        .cross {
+            color: #ef4444;
+            font-size: 24px;
+        }
+        
+        /* Investment Use */
+        .investment-bars {
+            margin: 40px 0;
+        }
+        
+        .invest-item {
+            margin-bottom: 25px;
+        }
+        
+        .invest-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .invest-label {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .invest-value {
+            font-size: 18px;
+            color: #14B8A6;
+            font-weight: bold;
+        }
+        
+        .invest-bar-bg {
+            height: 30px;
+            background: #e5e7eb;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .invest-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #14B8A6, #0d9488);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 15px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        /* Timeline */
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            margin: 50px 0;
+            position: relative;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 10%;
+            right: 10%;
+            height: 4px;
+            background: #14B8A6;
+        }
+        
+        .timeline-item {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .timeline-dot {
+            width: 60px;
+            height: 60px;
+            background: #14B8A6;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .timeline-content {
+            background: #f0fdfa;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 0 10px;
+        }
+        
+        .timeline-content h4 {
+            color: #1A5276;
+            margin-bottom: 10px;
+        }
+        
+        .timeline-content ul {
+            list-style: none;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .timeline-content li {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        /* Quote */
+        .quote {
+            background: #f8fafc;
+            border-left: 5px solid #14B8A6;
+            padding: 30px;
+            margin: 30px 0;
+            font-style: italic;
+            font-size: 22px;
+            color: #555;
+        }
+        
+        .quote-author {
+            margin-top: 15px;
+            font-style: normal;
+            color: #999;
+            font-size: 16px;
+        }
+        
+        /* Contact Slide */
+        .contact-slide {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .contact-info {
+            margin: 40px 0;
+        }
+        
+        .contact-item {
+            font-size: 24px;
+            margin: 15px 0;
+            color: #555;
+        }
+        
+        .contact-item span {
+            margin-right: 15px;
+        }
+        
+        .demo-box {
+            background: linear-gradient(135deg, #14B8A6, #0d9488);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin: 30px auto;
+            max-width: 600px;
+        }
+        
+        .demo-box h3 {
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .demo-box p {
+            color: rgba(255,255,255,0.9);
+            font-size: 16px;
+        }
+        
+        /* Unit Economics */
+        .unit-box {
+            background: #f8fafc;
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        .unit-box h4 {
+            color: #1A5276;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        .unit-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed #ddd;
+        }
+        
+        .unit-row:last-child {
+            border-bottom: none;
+            padding-top: 15px;
+            font-weight: bold;
+            font-size: 22px;
+            color: #14B8A6;
+        }
+        
+        /* Return Table */
+        .return-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .return-card {
+            text-align: center;
+            padding: 30px;
+            border-radius: 16px;
+        }
+        
+        .return-card.pessimist {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+        }
+        
+        .return-card.base {
+            background: #d1fae5;
+            border: 2px solid #14B8A6;
+        }
+        
+        .return-card.optimist {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+        }
+        
+        .return-card h4 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .return-card .multiplier {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        
+        .return-card .value {
+            font-size: 20px;
+            margin-top: 10px;
+            color: #555;
+        }
+        
+        @media print {
+            .slide {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SLIDE 1: CAPA -->
+<div class="slide cover">
+    <h1>🏥 SeniorCare+</h1>
+    <p class="subtitle">O marketplace que conecta famílias a cuidadores verificados</p>
+    <p class="tagline">"Cuidado profissional para quem você ama"</p>
+    <div class="slide-number">1/12</div>
+</div>
+
+<!-- SLIDE 2: O PROBLEMA -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>😰 O Problema</h2>
+    
+    <div class="stats-grid">
+        <div class="stat-card blue">
+            <span class="stat-number">30M</span>
+            <span class="stat-label">idosos no Brasil</span>
+        </div>
+        <div class="stat-card warning">
+            <span class="stat-number">40M</span>
+            <span class="stat-label">até 2030</span>
+        </div>
+        <div class="stat-card danger">
+            <span class="stat-number">67%</span>
+            <span class="stat-label">têm dificuldade em<br>encontrar cuidadores</span>
+        </div>
+    </div>
+    
+    <ul class="problem-list">
+        <li><span>⚠️</span> Falta de verificação de antecedentes</li>
+        <li><span>💸</span> Agências cobram 30-50% de comissão</li>
+        <li><span>📵</span> Zero transparência durante o cuidado</li>
+        <li><span>😰</span> Famílias vivem com medo e ansiedade</li>
+    </ul>
+    
+    <div class="quote">
+        "Minha mãe de 82 anos ficou 3 meses sem cuidador porque eu tinha medo de contratar alguém pela internet sem referências."
+        <div class="quote-author">— Maria, 54 anos, São Paulo</div>
+    </div>
+    
+    <div class="slide-number">2/12</div>
+</div>
+
+<!-- SLIDE 3: A SOLUÇÃO -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>💡 A Solução</h2>
+    
+    <p style="font-size: 24px; margin-bottom: 30px;">Uma plataforma completa que oferece <strong>segurança</strong>, <strong>transparência</strong> e <strong>tranquilidade</strong>:</p>
+    
+    <div class="solution-grid">
+        <div class="solution-card">
+            <h4>🔒 Verificação Rigorosa</h4>
+            <p>Background check, documentos validados por OCR, apenas 40% são aprovados</p>
+        </div>
+        <div class="solution-card">
+            <h4>🤖 Smart Match com IA</h4>
+            <p>Algoritmo encontra o cuidador ideal por personalidade, especialidade e localização</p>
+        </div>
+        <div class="solution-card">
+            <h4>📱 Care Log em Tempo Real</h4>
+            <p>Família acompanha refeições, medicamentos e humor do idoso instantaneamente</p>
+        </div>
+        <div class="solution-card">
+            <h4>🆘 Botão de Pânico</h4>
+            <p>Emergência com 1 clique: aciona SAMU e notifica família</p>
+        </div>
+        <div class="solution-card">
+            <h4>💳 Pagamento Seguro (Escrow)</h4>
+            <p>Dinheiro só é liberado após serviço concluído</p>
+        </div>
+        <div class="solution-card">
+            <h4>👨‍👩‍👧 Family Share</h4>
+            <p>Irmãos dividem custos facilmente pelo app</p>
+        </div>
+    </div>
+    
+    <div class="slide-number">3/12</div>
+</div>
+
+<!-- SLIDE 4: TAMANHO DO MERCADO -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>📊 Tamanho do Mercado</h2>
+    
+    <div style="display: flex; justify-content: space-around; align-items: center; margin: 50px 0;">
+        <div style="text-align: center; position: relative; width: 400px; height: 400px;">
+            <div class="circle tam" style="position: absolute; top: 0; left: 0;">
+                <span class="circle-label">TAM</span>
+                <span class="circle-value">R$ 84 bi</span>
+                <span class="circle-desc">Mercado total de<br>cuidados para idosos</span>
+            </div>
+            <div class="circle sam" style="top: 60px; left: 60px;">
+                <span class="circle-label">SAM</span>
+                <span class="circle-value">R$ 12 bi</span>
+                <span class="circle-desc">Cuidadores<br>domiciliares</span>
+            </div>
+            <div class="circle som" style="top: 130px; left: 130px;">
+                <span class="circle-label">SOM</span>
+                <span class="circle-value">R$ 240 mi</span>
+                <span class="circle-desc">Meta 5 anos</span>
+            </div>
+        </div>
+        
+        <div style="max-width: 400px;">
+            <div class="stat-card" style="margin-bottom: 20px;">
+                <span class="stat-number">+12%</span>
+                <span class="stat-label">Crescimento anual do setor</span>
+            </div>
+            <p style="font-size: 18px; color: #555;">
+                📈 O mercado cresce independente da economia<br><br>
+                👴 Envelhecer é inevitável<br><br>
+                💰 Famílias pagam por segurança e tranquilidade
+            </p>
+        </div>
+    </div>
+    
+    <div class="slide-number">4/12</div>
+</div>
+
+<!-- SLIDE 5: MODELO DE NEGÓCIO -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>💰 Modelo de Negócio</h2>
+    
+    <table class="revenue-table">
+        <tr>
+            <th>Fonte de Receita</th>
+            <th>Valor</th>
+            <th>Descrição</th>
+        </tr>
+        <tr>
+            <td><strong>Taxa de Serviço</strong></td>
+            <td><span class="highlight">15%</span></td>
+            <td>Sobre cada agendamento</td>
+        </tr>
+        <tr>
+            <td>Assinatura Cuidador Premium</td>
+            <td>R$ 49/mês</td>
+            <td>Destaque no ranking de busca</td>
+        </tr>
+        <tr>
+            <td>Verificação Expressa</td>
+            <td>R$ 99</td>
+            <td>Background check em 24h</td>
+        </tr>
+        <tr>
+            <td>Cursos Academy</td>
+            <td>R$ 199</td>
+            <td>Certificação para cuidadores</td>
+        </tr>
+    </table>
+    
+    <h3>Exemplo prático:</h3>
+    <div style="background: #f0fdfa; padding: 30px; border-radius: 16px; margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <p style="font-size: 18px; margin-bottom: 10px;">Agendamento de 8 horas (diária)</p>
+                <p style="font-size: 16px; color: #666;">Valor cobrado da família: <strong>R$ 320,00</strong></p>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 14px; color: #666;">Cuidador recebe</div>
+                <div style="font-size: 32px; font-weight: bold; color: #1A5276;">R$ 272</div>
+                <div style="font-size: 12px; color: #999;">(85%)</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 14px; color: #666;">SeniorCare+ recebe</div>
+                <div style="font-size: 32px; font-weight: bold; color: #14B8A6;">R$ 48</div>
+                <div style="font-size: 12px; color: #999;">(15%)</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="slide-number">5/12</div>
+</div>
+
+<!-- SLIDE 6: PROJEÇÃO FINANCEIRA -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>📈 Projeção Financeira (5 anos)</h2>
+    
+    <div class="chart-container">
+        <div class="bar-chart">
+            <div class="bar-group">
+                <div class="bar" style="height: 40px;">R$600K</div>
+                <div class="bar-label">Ano 1</div>
+                <div class="bar-value">500 cuidadores</div>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 100px;">R$5M</div>
+                <div class="bar-label">Ano 2</div>
+                <div class="bar-value">2.000 cuidadores</div>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 160px;">R$20M</div>
+                <div class="bar-label">Ano 3</div>
+                <div class="bar-value">5.000 cuidadores</div>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 220px;">R$40M</div>
+                <div class="bar-label">Ano 4</div>
+                <div class="bar-value">10.000 cuidadores</div>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 280px;">R$80M</div>
+                <div class="bar-label">Ano 5</div>
+                <div class="bar-value">20.000 cuidadores</div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 30px; margin-top: 30px;">
+        <div class="unit-box" style="flex: 1;">
+            <h4>📊 Unit Economics</h4>
+            <div class="unit-row">
+                <span>Ticket médio</span>
+                <span>R$ 280</span>
+            </div>
+            <div class="unit-row">
+                <span>Receita por agendamento</span>
+                <span>R$ 42</span>
+            </div>
+            <div class="unit-row">
+                <span>LTV (família)</span>
+                <span>R$ 3.024</span>
+            </div>
+            <div class="unit-row">
+                <span>CAC</span>
+                <span>R$ 80</span>
+            </div>
+            <div class="unit-row">
+                <span>LTV/CAC</span>
+                <span>37,8x ✅</span>
+            </div>
+        </div>
+        
+        <div class="unit-box" style="flex: 1;">
+            <h4>💰 Margem</h4>
+            <div class="unit-row">
+                <span>Ano 1</span>
+                <span>~30%</span>
+            </div>
+            <div class="unit-row">
+                <span>Ano 2</span>
+                <span>40%</span>
+            </div>
+            <div class="unit-row">
+                <span>Ano 3+</span>
+                <span>45%+</span>
+            </div>
+            <div class="unit-row">
+                <span>Break-even</span>
+                <span>100 cuidadores</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="slide-number">6/12</div>
+</div>
+
+<!-- SLIDE 7: DIFERENCIAIS -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>🏆 Por que vamos vencer?</h2>
+    
+    <table class="comparison-table">
+        <tr>
+            <th>Funcionalidade</th>
+            <th>SeniorCare+</th>
+            <th>Agências</th>
+            <th>Classificados</th>
+        </tr>
+        <tr>
+            <td>Smart Match com IA</td>
+            <td class="check">✓</td>
+            <td class="cross">✗</td>
+            <td class="cross">✗</td>
+        </tr>
+        <tr>
+            <td>Care Log em tempo real</td>
+            <td class="check">✓</td>
+            <td class="cross">✗</td>
+            <td class="cross">✗</td>
+        </tr>
+        <tr>
+            <td>Pagamento Escrow</td>
+            <td class="check">✓</td>
+            <td class="cross">✗</td>
+            <td class="cross">✗</td>
+        </tr>
+        <tr>
+            <td>Verificação com OCR</td>
+            <td class="check">✓</td>
+            <td>Parcial</td>
+            <td class="cross">✗</td>
+        </tr>
+        <tr>
+            <td>Family Share</td>
+            <td class="check">✓</td>
+            <td class="cross">✗</td>
+            <td class="cross">✗</td>
+        </tr>
+        <tr>
+            <td>Botão de Pânico</td>
+            <td class="check">✓</td>
+            <td class="cross">✗</td>
+            <td class="cross">✗</td>
+        </tr>
+        <tr>
+            <td><strong>Taxa</strong></td>
+            <td><strong style="color: #14B8A6;">15%</strong></td>
+            <td style="color: #ef4444;">30-50%</td>
+            <td>Variável</td>
+        </tr>
+    </table>
+    
+    <h3 style="margin-top: 30px;">🔒 Nossas barreiras de entrada:</h3>
+    <div style="display: flex; gap: 20px; margin-top: 20px;">
+        <div style="flex: 1; background: #f0fdfa; padding: 20px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 36px;">🧠</div>
+            <p><strong>Algoritmo proprietário</strong><br>de matching</p>
+        </div>
+        <div style="flex: 1; background: #f0fdfa; padding: 20px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 36px;">⭐</div>
+            <p><strong>Base de reviews</strong><br>verificados</p>
+        </div>
+        <div style="flex: 1; background: #f0fdfa; padding: 20px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 36px;">🔄</div>
+            <p><strong>Network effect</strong><br>dois lados</p>
+        </div>
+    </div>
+    
+    <div class="slide-number">7/12</div>
+</div>
+
+<!-- SLIDE 8: INVESTIMENTO -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>💵 Investimento Solicitado</h2>
+    
+    <div style="text-align: center; margin: 30px 0;">
+        <span style="font-size: 72px; font-weight: bold; color: #14B8A6;">R$ 500.000</span>
+    </div>
+    
+    <h3>Uso dos recursos:</h3>
+    <div class="investment-bars">
+        <div class="invest-item">
+            <div class="invest-header">
+                <span class="invest-label">🖥️ Desenvolvimento</span>
+                <span class="invest-value">R$ 200.000</span>
+            </div>
+            <div class="invest-bar-bg">
+                <div class="invest-bar-fill" style="width: 40%;">40%</div>
+            </div>
+        </div>
+        <div class="invest-item">
+            <div class="invest-header">
+                <span class="invest-label">📣 Marketing</span>
+                <span class="invest-value">R$ 175.000</span>
+            </div>
+            <div class="invest-bar-bg">
+                <div class="invest-bar-fill" style="width: 35%;">35%</div>
+            </div>
+        </div>
+        <div class="invest-item">
+            <div class="invest-header">
+                <span class="invest-label">⚙️ Operações</span>
+                <span class="invest-value">R$ 75.000</span>
+            </div>
+            <div class="invest-bar-bg">
+                <div class="invest-bar-fill" style="width: 15%;">15%</div>
+            </div>
+        </div>
+        <div class="invest-item">
+            <div class="invest-header">
+                <span class="invest-label">🏦 Reserva</span>
+                <span class="invest-value">R$ 50.000</span>
+            </div>
+            <div class="invest-bar-bg">
+                <div class="invest-bar-fill" style="width: 10%;">10%</div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 30px; margin-top: 30px;">
+        <div style="flex: 1; background: #1A5276; color: white; padding: 30px; border-radius: 16px; text-align: center;">
+            <div style="font-size: 18px; opacity: 0.8;">Equity oferecido</div>
+            <div style="font-size: 48px; font-weight: bold;">10-15%</div>
+        </div>
+        <div style="flex: 1; background: #14B8A6; color: white; padding: 30px; border-radius: 16px; text-align: center;">
+            <div style="font-size: 18px; opacity: 0.8;">Valuation pré-money</div>
+            <div style="font-size: 48px; font-weight: bold;">R$ 3-4M</div>
+        </div>
+    </div>
+    
+    <div class="slide-number">8/12</div>
+</div>
+
+<!-- SLIDE 9: RETORNO PARA INVESTIDOR -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>🚀 Retorno para Investidor</h2>
+    
+    <p style="text-align: center; font-size: 22px; margin-bottom: 30px;">
+        Investimento de <strong>R$ 500.000</strong> por <strong>12% equity</strong>
+    </p>
+    
+    <div class="return-grid">
+        <div class="return-card pessimist">
+            <h4>😐 Pessimista</h4>
+            <div class="multiplier" style="color: #d97706;">12x</div>
+            <div class="value">R$ 6 milhões</div>
+            <p style="font-size: 14px; margin-top: 10px;">Valuation: R$ 50M</p>
+        </div>
+        <div class="return-card base">
+            <h4>😊 Base</h4>
+            <div class="multiplier" style="color: #14B8A6;">36x</div>
+            <div class="value">R$ 18 milhões</div>
+            <p style="font-size: 14px; margin-top: 10px;">Valuation: R$ 150M</p>
+        </div>
+        <div class="return-card optimist">
+            <h4>🤩 Otimista</h4>
+            <div class="multiplier" style="color: #3b82f6;">72x</div>
+            <div class="value">R$ 36 milhões</div>
+            <p style="font-size: 14px; margin-top: 10px;">Valuation: R$ 300M</p>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin: 40px 0;">
+        <div style="background: #f0fdfa; display: inline-block; padding: 20px 40px; border-radius: 16px;">
+            <span style="font-size: 20px;">TIR (Taxa Interna de Retorno):</span>
+            <span style="font-size: 32px; font-weight: bold; color: #14B8A6; margin-left: 15px;">65-120% ao ano</span>
+        </div>
+    </div>
+    
+    <h3>🎯 Exit Strategy</h3>
+    <div style="display: flex; gap: 20px; margin-top: 20px;">
+        <div style="flex: 1; background: #f8fafc; padding: 20px; border-radius: 12px;">
+            <strong>1. Aquisição Health</strong>
+            <p style="font-size: 14px; color: #666; margin-top: 5px;">Hapvida, Dasa, Fleury</p>
+        </div>
+        <div style="flex: 1; background: #f8fafc; padding: 20px; border-radius: 12px;">
+            <strong>2. Aquisição Tech</strong>
+            <p style="font-size: 14px; color: #666; margin-top: 5px;">iFood, Movile, 99</p>
+        </div>
+        <div style="flex: 1; background: #f8fafc; padding: 20px; border-radius: 12px;">
+            <strong>3. IPO</strong>
+            <p style="font-size: 14px; color: #666; margin-top: 5px;">7-10 anos</p>
+        </div>
+    </div>
+    
+    <div class="slide-number">9/12</div>
+</div>
+
+<!-- SLIDE 10: ROADMAP -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>🗓️ Roadmap</h2>
+    
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-dot">Q1<br>2025</div>
+            <div class="timeline-content">
+                <h4>🚀 BETA</h4>
+                <ul>
+                    <li>• 100 cuidadores</li>
+                    <li>• 500 famílias</li>
+                    <li>• MVP em MS</li>
+                    <li>• Validar modelo</li>
+                </ul>
+            </div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-dot">Q2<br>2025</div>
+            <div class="timeline-content">
+                <h4>📱 LANÇAMENTO</h4>
+                <ul>
+                    <li>• App nas lojas</li>
+                    <li>• 500 cuidadores</li>
+                    <li>• Stripe integrado</li>
+                    <li>• Marketing pago</li>
+                </ul>
+            </div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-dot">Q3<br>2025</div>
+            <div class="timeline-content">
+                <h4>🌎 EXPANSÃO</h4>
+                <ul>
+                    <li>• SP, RJ, MG</li>
+                    <li>• 2.000 cuidadores</li>
+                    <li>• Parcerias hospitais</li>
+                    <li>• Team completo</li>
+                </ul>
+            </div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-dot">Q4<br>2025</div>
+            <div class="timeline-content">
+                <h4>📈 ESCALA</h4>
+                <ul>
+                    <li>• 10 estados</li>
+                    <li>• 5.000 cuidadores</li>
+                    <li>• Break-even</li>
+                    <li>• Série A ready</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="slide-number">10/12</div>
+</div>
+
+<!-- SLIDE 11: TRAÇÃO -->
+<div class="slide">
+    <span class="logo">SeniorCare+</span>
+    <h2>🎯 Tração Atual</h2>
+    
+    <div style="text-align: center; margin: 30px 0;">
+        <div style="background: linear-gradient(135deg, #14B8A6, #0d9488); color: white; padding: 30px; border-radius: 20px; display: inline-block;">
+            <span style="font-size: 28px; font-weight: bold;">✅ MVP 100% FUNCIONAL</span>
+            <p style="opacity: 0.9; margin-top: 10px;">Demonstração ao vivo disponível</p>
+        </div>
+    </div>
+    
+    <div class="solution-grid">
+        <div class="solution-card">
+            <h4>✅ Smart Match com IA</h4>
+            <p>Algoritmo de compatibilidade funcionando</p>
+        </div>
+        <div class="solution-card">
+            <h4>✅ Chat Seguro</h4>
+            <p>Mensagens em tempo real</p>
+        </div>
+        <div class="solution-card">
+            <h4>✅ Care Log</h4>
+            <p>Registro de atividades completo</p>
+        </div>
+        <div class="solution-card">
+            <h4>✅ Agendamentos</h4>
+            <p>Sistema de booking funcional</p>
+        </div>
+        <div class="solution-card">
+            <h4>✅ Pagamentos</h4>
+            <p>Sistema escrow implementado</p>
+        </div>
+        <div class="solution-card">
+            <h4>✅ Painel Admin</h4>
+            <p>Dashboard completo</p>
+        </div>
+        <div class="solution-card">
+            <h4>✅ Academy</h4>
+            <p>Conteúdo educacional</p>
+        </div>
+        <div class="solution-card">
+            <h4>✅ Botão Pânico</h4>
+            <p>Emergência implementada</p>
+        </div>
+    </div>
+    
+    <div style="background: #fef3c7; padding: 25px; border-radius: 16px; margin-top: 30px; border-left: 5px solid #f59e0b;">
+        <strong>⏰ Próximos passos imediatos:</strong>
+        <p style="margin-top: 10px;">
+            🔄 Integração pagamentos reais (2 semanas) → 
+            📱 Build iOS/Android (1 semana) → 
+            🧪 Beta com 50 famílias (1 mês)
+        </p>
+    </div>
+    
+    <div class="slide-number">11/12</div>
+</div>
+
+<!-- SLIDE 12: CONTATO -->
+<div class="slide contact-slide">
+    <span class="logo">SeniorCare+</span>
+    
+    <h1 style="color: #1A5276;">Vamos transformar o cuidado<br>de idosos no Brasil?</h1>
+    
+    <div class="contact-info">
+        <p class="contact-item"><span>👤</span> [SEU NOME]</p>
+        <p class="contact-item"><span>📧</span> [seu@email.com]</p>
+        <p class="contact-item"><span>📱</span> [seu telefone]</p>
+        <p class="contact-item"><span>🔗</span> [linkedin.com/in/seu-perfil]</p>
+    </div>
+    
+    <div class="demo-box">
+        <h3>🖥️ Teste o app agora:</h3>
+        <p style="font-size: 20px; margin: 15px 0;"><strong>senior-support-18.preview.emergentagent.com</strong></p>
+        <p>
+            Cliente: joao.filho@example.com / password123<br>
+            Admin: admin@seniorcare.com / admin123
+        </p>
+    </div>
+    
+    <p class="tagline" style="color: #14B8A6; font-size: 28px; margin-top: 40px;">
+        "Cuidado profissional para quem você ama"
+    </p>
+    
+    <div class="slide-number">12/12</div>
+</div>
+
+</body>
+</html>
