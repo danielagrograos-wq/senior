@@ -976,6 +976,157 @@ async def get_care_summary(booking_id: str, user = Depends(get_current_user)):
     
     return {'summary': summary, 'total_entries': len(logs)}
 
+# ============ ALTERNATIVE CARE LOG ENDPOINTS (RESTful naming) ============
+# These follow the requested naming convention: /api/bookings/<id>/logs/
+
+class CareLogCreate(BaseModel):
+    """Model para criação de care log via endpoint alternativo"""
+    log_type: Literal['meal', 'med', 'mood', 'vital', 'check_in', 'check_out', 'activity', 'note'] = 'note'
+    description: str
+    vital_signs: Optional[Dict[str, Any]] = None
+    mood: Optional[str] = None
+    medication_given: Optional[str] = None
+    meal_description: Optional[str] = None
+
+@api_router.post("/bookings/{booking_id}/logs")
+async def create_booking_log(booking_id: str, log_data: CareLogCreate, user = Depends(get_current_user)):
+    """
+    POST /api/bookings/<id>/logs/ - Para o cuidador enviar um registro
+    
+    log_type options: meal, med, mood, vital, check_in, check_out, activity, note
+    """
+    if user['role'] != 'caregiver':
+        raise HTTPException(status_code=403, detail='Only caregivers can create care logs')
+    
+    booking = await db.bookings.find_one({'id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    profile = await db.caregiver_profiles.find_one({'user_id': user['id']})
+    if not profile or booking['caregiver_id'] != profile['id']:
+        raise HTTPException(status_code=403, detail='Access denied')
+    
+    # Map simplified log_type to full entry_type
+    type_mapping = {
+        'meal': 'meal',
+        'med': 'medication',
+        'mood': 'activity',  # Mood is logged as activity with mood field
+        'vital': 'vital_signs',
+        'check_in': 'check_in',
+        'check_out': 'check_out',
+        'activity': 'activity',
+        'note': 'note'
+    }
+    entry_type = type_mapping.get(log_data.log_type, 'note')
+    
+    # Handle check-in/check-out
+    if entry_type == 'check_in':
+        await db.bookings.update_one(
+            {'id': booking_id},
+            {'$set': {'check_in_time': datetime.utcnow(), 'status': 'in_progress'}}
+        )
+    elif entry_type == 'check_out':
+        await db.bookings.update_one(
+            {'id': booking_id},
+            {'$set': {'check_out_time': datetime.utcnow()}}
+        )
+    
+    log_id = str(uuid.uuid4())
+    log_entry = {
+        'id': log_id,
+        'booking_id': booking_id,
+        'caregiver_id': profile['id'],
+        'caregiver_name': profile['user_name'],
+        'entry_type': entry_type,
+        'log_type': log_data.log_type,  # Also store original simplified type
+        'description': log_data.description,
+        'vital_signs': log_data.vital_signs,
+        'mood': log_data.mood,
+        'medication_given': log_data.medication_given,
+        'meal_description': log_data.meal_description,
+        'created_at': datetime.utcnow()
+    }
+    await db.care_logs.insert_one(log_entry)
+    
+    # Notify family
+    notification_titles = {
+        'check_in': '📍 Cuidador chegou!',
+        'check_out': '👋 Cuidado finalizado',
+        'medication': '💊 Medicação administrada',
+        'meal': '🍽️ Refeição registrada',
+        'vital_signs': '❤️ Sinais vitais medidos',
+        'activity': '🎯 Atividade realizada',
+        'note': '📝 Nova observação'
+    }
+    
+    await create_notification(
+        booking['client_id'],
+        notification_titles.get(entry_type, 'Atualização de cuidado'),
+        log_data.description[:100],
+        f'care_log_{entry_type}',
+        {'booking_id': booking_id, 'log_id': log_id}
+    )
+    
+    return {
+        'id': log_id,
+        'booking_id': booking_id,
+        'log_type': log_data.log_type,
+        'entry_type': entry_type,
+        'description': log_data.description,
+        'created_at': log_entry['created_at'],
+        'message': 'Log criado com sucesso'
+    }
+
+@api_router.get("/bookings/{booking_id}/logs")
+async def get_booking_logs(booking_id: str, user = Depends(get_current_user)):
+    """
+    GET /api/bookings/<id>/logs/ - Para a família visualizar a linha do tempo
+    
+    Returns: Lista de logs em ordem cronológica (mais recente primeiro)
+    """
+    booking = await db.bookings.find_one({'id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail='Booking not found')
+    
+    profile = await db.caregiver_profiles.find_one({'user_id': user['id']})
+    caregiver_profile_id = profile['id'] if profile else None
+    
+    # Verificar permissão
+    if user['role'] == 'client' and booking['client_id'] != user['id']:
+        raise HTTPException(status_code=403, detail='Access denied')
+    if user['role'] == 'caregiver' and booking['caregiver_id'] != caregiver_profile_id:
+        raise HTTPException(status_code=403, detail='Access denied')
+    if user['role'] == 'admin':
+        pass  # Admin pode ver todos
+    
+    logs = await db.care_logs.find({'booking_id': booking_id}).sort('created_at', -1).to_list(100)
+    
+    # Format response for timeline
+    timeline = []
+    for log in logs:
+        timeline.append({
+            'id': log['id'],
+            'booking_id': log['booking_id'],
+            'caregiver_id': log['caregiver_id'],
+            'caregiver_name': log.get('caregiver_name', 'Cuidador'),
+            'log_type': log.get('log_type', log.get('entry_type')),
+            'entry_type': log.get('entry_type'),
+            'description': log['description'],
+            'vital_signs': log.get('vital_signs'),
+            'mood': log.get('mood'),
+            'medication_given': log.get('medication_given'),
+            'meal_description': log.get('meal_description'),
+            'created_at': log['created_at']
+        })
+    
+    return {
+        'booking_id': booking_id,
+        'elder_name': booking.get('elder_name'),
+        'caregiver_name': booking.get('caregiver_name'),
+        'total_logs': len(timeline),
+        'timeline': timeline
+    }
+
 # ============ EMERGENCY ENDPOINT ============
 
 @api_router.post("/emergency")
