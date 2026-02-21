@@ -966,7 +966,19 @@ async def get_care_logs(booking_id: str, user = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail='Access denied')
     
     logs = await db.care_logs.find({'booking_id': booking_id}).sort('created_at', -1).to_list(100)
-    return [CareLogResponse(**log) for log in logs]
+    
+    # Normalize logs to ensure all required fields exist
+    normalized_logs = []
+    for log in logs:
+        # Remove MongoDB _id field
+        if '_id' in log:
+            del log['_id']
+        # Add missing fields with defaults
+        log.setdefault('caregiver_name', booking.get('caregiver_name', 'Cuidador'))
+        log.setdefault('log_type', log.get('entry_type'))
+        normalized_logs.append(CareLogResponse(**log))
+    
+    return normalized_logs
 
 @api_router.get("/care-log/{booking_id}/summary")
 async def get_care_summary(booking_id: str, user = Depends(get_current_user)):
