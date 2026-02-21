@@ -289,11 +289,21 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 # ============ SMART MATCH ALGORITHM ============
 
 def calculate_match_score(caregiver: dict, client_profile: dict) -> float:
-    """Calculate compatibility score between caregiver and client needs"""
+    """
+    Calculate compatibility score between caregiver and client needs.
+    
+    Ponderação conforme plano de negócios:
+    - Especialidade: 40%
+    - Experiência: 25%
+    - Proximidade: 20%
+    - Afinidade: 15%
+    
+    Returns: Score de 0 a 100
+    """
     score = 0.0
     max_score = 100.0
     
-    # Care level match (30 points)
+    # ============ ESPECIALIDADE (40 pontos) ============
     care_level = client_profile.get('care_level', 'companionship')
     specializations = caregiver.get('specializations', [])
     
@@ -306,46 +316,76 @@ def calculate_match_score(caregiver: dict, client_profile: dict) -> float:
     }
     
     required_specs = care_level_mapping.get(care_level, [])
-    if any(spec in specializations for spec in required_specs):
-        score += 30
-    elif specializations:
-        score += 15
+    specialty_match_count = sum(1 for spec in required_specs if spec in specializations)
     
-    # Language match (15 points)
-    client_langs = client_profile.get('preferred_languages', ['Português'])
-    caregiver_langs = caregiver.get('languages', ['Português'])
-    if any(lang in caregiver_langs for lang in client_langs):
-        score += 15
+    if specialty_match_count >= 2:
+        score += 40  # Forte correspondência
+    elif specialty_match_count == 1:
+        score += 30  # Correspondência parcial
+    elif len(specializations) > 0:
+        score += 15  # Tem experiência, mas não específica
     
-    # Location match (15 points)
-    if caregiver.get('city', '').lower() == client_profile.get('elder_city', '').lower():
-        score += 15
+    # ============ EXPERIÊNCIA (25 pontos) ============
+    exp_years = caregiver.get('experience_years', 0)
+    if exp_years >= 10:
+        score += 25
+    elif exp_years >= 7:
+        score += 22
+    elif exp_years >= 5:
+        score += 18
+    elif exp_years >= 3:
+        score += 14
+    elif exp_years >= 1:
+        score += 8
     
-    # Pet compatibility (10 points)
-    if client_profile.get('has_pets') and caregiver.get('accepts_pets'):
-        score += 10
-    elif not client_profile.get('has_pets'):
-        score += 10
+    # ============ PROXIMIDADE (20 pontos) ============
+    caregiver_city = caregiver.get('city', '').lower().strip()
+    client_city = client_profile.get('elder_city', '').lower().strip()
+    caregiver_neighborhood = caregiver.get('neighborhood', '').lower().strip()
+    client_address = client_profile.get('elder_address', '').lower().strip()
     
-    # Driver requirement (10 points)
-    if client_profile.get('needs_driver') and caregiver.get('has_car'):
-        score += 10
-    elif not client_profile.get('needs_driver'):
-        score += 10
+    if caregiver_city == client_city:
+        score += 12  # Mesma cidade
+        # Bônus se bairro próximo
+        if caregiver_neighborhood and caregiver_neighborhood in client_address:
+            score += 8  # Mesmo bairro
+        else:
+            score += 4  # Cidade igual, bairro diferente
+    elif caregiver_city and client_city:
+        # Cidades diferentes - sem pontos de proximidade
+        pass
     
-    # Experience bonus (10 points)
-    exp = caregiver.get('experience_years', 0)
-    if exp >= 5:
-        score += 10
-    elif exp >= 2:
-        score += 5
+    # ============ AFINIDADE (15 pontos) ============
+    affinity_score = 0
     
-    # Hobbies match (10 points)
-    client_hobbies = set(client_profile.get('elder_hobbies', []))
-    caregiver_hobbies = set(caregiver.get('hobbies', []))
+    # Idiomas em comum (5 pontos)
+    client_langs = set(client_profile.get('preferred_languages', ['Português']))
+    caregiver_langs = set(caregiver.get('languages', ['Português']))
+    if client_langs.intersection(caregiver_langs):
+        affinity_score += 5
+    
+    # Hobbies em comum (5 pontos)
+    client_hobbies = set(h.lower() for h in client_profile.get('elder_hobbies', []))
+    caregiver_hobbies = set(h.lower() for h in caregiver.get('hobbies', []))
     if client_hobbies and caregiver_hobbies:
         overlap = len(client_hobbies.intersection(caregiver_hobbies))
-        score += min(overlap * 3, 10)
+        affinity_score += min(overlap * 2, 5)
+    
+    # Compatibilidade com animais (3 pontos)
+    if client_profile.get('has_pets'):
+        if caregiver.get('accepts_pets'):
+            affinity_score += 3
+    else:
+        affinity_score += 3  # Não tem pets, não é problema
+    
+    # Necessidade de motorista (2 pontos)
+    if client_profile.get('needs_driver'):
+        if caregiver.get('has_car'):
+            affinity_score += 2
+    else:
+        affinity_score += 2  # Não precisa de motorista
+    
+    score += min(affinity_score, 15)
     
     return min(round(score, 1), max_score)
 
