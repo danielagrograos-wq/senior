@@ -67,10 +67,20 @@ export default function CareLogScreen() {
 
   const fetchLogs = async () => {
     try {
-      const response = await api.get(`/care-logs/${bookingId}`);
-      setLogs(response.data);
+      // Usar novo endpoint RESTful: GET /api/bookings/<id>/logs
+      const response = await api.get(`/bookings/${bookingId}/logs`);
+      // O novo endpoint retorna { timeline: [...], total_logs: n }
+      const data = response.data;
+      setLogs(data.timeline || data);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching logs:', error);
+      // Fallback para endpoint legado
+      try {
+        const fallback = await api.get(`/care-log/${bookingId}`);
+        setLogs(fallback.data);
+      } catch (e) {
+        console.error('Fallback also failed:', e);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -78,11 +88,28 @@ export default function CareLogScreen() {
 
   const fetchSummary = async () => {
     try {
-      const response = await api.get(`/care-logs/summary/${bookingId}`);
+      const response = await api.get(`/care-log/${bookingId}/summary`);
       setSummary(response.data.summary);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching summary:', error);
     }
+  };
+
+  // Mapeia entry_type para log_type simplificado
+  const mapEntryTypeToLogType = (entryType: string): string => {
+    const mapping: Record<string, string> = {
+      'medication': 'med',
+      'meal': 'meal',
+      'vital_signs': 'vital',
+      'activity': 'activity',
+      'check_in': 'check_in',
+      'check_out': 'check_out',
+      'rest': 'activity',
+      'hygiene': 'activity',
+      'observation': 'note',
+      'incident': 'note',
+    };
+    return mapping[entryType] || 'note';
   };
 
   const handleSubmit = async () => {
@@ -93,9 +120,9 @@ export default function CareLogScreen() {
 
     setIsSubmitting(true);
     try {
+      // Usar novo endpoint RESTful: POST /api/bookings/<id>/logs
       const data: any = {
-        booking_id: bookingId,
-        entry_type: selectedType,
+        log_type: mapEntryTypeToLogType(selectedType),
         description,
         mood: mood || null,
       };
@@ -110,14 +137,34 @@ export default function CareLogScreen() {
         data.vital_signs = vitalSigns;
       }
 
-      await api.post('/care-logs', data);
+      await api.post(`/bookings/${bookingId}/logs`, data);
       Alert.alert('Sucesso', 'Registro adicionado!');
       setShowAddModal(false);
       resetForm();
       fetchLogs();
       fetchSummary();
     } catch (error: any) {
-      Alert.alert('Erro', error.response?.data?.detail || 'Falha ao adicionar registro');
+      console.error('Error creating log:', error);
+      // Fallback para endpoint legado
+      try {
+        const legacyData = {
+          booking_id: bookingId,
+          entry_type: selectedType,
+          description,
+          mood: mood || null,
+          medication_given: medication || null,
+          meal_description: mealDescription || null,
+          vital_signs: selectedType === 'vital_signs' ? vitalSigns : null,
+        };
+        await api.post('/care-log', legacyData);
+        Alert.alert('Sucesso', 'Registro adicionado!');
+        setShowAddModal(false);
+        resetForm();
+        fetchLogs();
+        fetchSummary();
+      } catch (fallbackError: any) {
+        Alert.alert('Erro', fallbackError.response?.data?.detail || 'Falha ao adicionar registro');
+      }
     } finally {
       setIsSubmitting(false);
     }
