@@ -233,7 +233,7 @@ test_plan:
     status_history:
       - working: false
         agent: "testing"
-        comment: "Legacy endpoints /api/care-log e /api/care-log/{booking_id} retornando erro 520 (Cloudflare connectivity issue). Problema de infraestrutura, não de código."
+        comment: "Legacy endpoints /api/care-log com dois problemas: 1) Cloudflare 520 errors intermitentes, 2) ValidationError: caregiver_name field required quando request chega ao backend (visible nos logs)."
 
   - task: "Teste de novos endpoints RESTful de Care Log"
     implemented: true
