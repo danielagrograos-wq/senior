@@ -920,7 +920,9 @@ async def create_care_log_entry(entry: CareLogEntry, background_tasks: Backgroun
         'id': log_id,
         'booking_id': entry.booking_id,
         'caregiver_id': profile['id'],
+        'caregiver_name': profile.get('user_name', 'Cuidador'),
         'entry_type': entry.entry_type,
+        'log_type': entry.entry_type,  # Map entry_type to log_type
         'description': entry.description,
         'vital_signs': entry.vital_signs,
         'photo_base64': entry.photo_base64,
